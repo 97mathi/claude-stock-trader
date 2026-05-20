@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How to Use — Stock Predictor & Paper Trader (India)</title>
+  <style>
+    /* ── Base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #1a1a2e;
+      --surface:   #16213e;
+      --card:      #0f3460;
+      --accent:    #e94560;
+      --blue:      #1565c0;
+      --green:     #2e7d32;
+      --orange:    #e65100;
+      --yellow:    #f9a825;
+      --text:      #e0e0e0;
+      --muted:     #9aa4b2;
+      --border:    #2a3a5c;
+      --code-bg:   #0d1b2a;
+      --radius:    10px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .wrapper { display: flex; min-height: 100vh; }
+
+    nav {
+      width: 270px;
+      min-width: 270px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 28px 0 40px;
+    }
+
+    .nav-logo {
+      padding: 0 20px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .nav-logo h2 {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .nav-logo p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    nav a {
+      display: block;
+      padding: 8px 20px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      border-left: 3px solid transparent;
+      transition: all .18s;
+    }
+    nav a:hover, nav a.active {
+      color: var(--text);
+      border-left-color: var(--accent);
+      background: rgba(233,69,96,.06);
+    }
+    nav .section-title {
+      padding: 16px 20px 4px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    main {
+      flex: 1;
+      padding: 48px 56px;
+      max-width: 960px;
+    }
+
+    /* ── Typography ───────────────────────────────────────────────── */
+    h1 { font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 10px; }
+    h2 { font-size: 1.5rem; font-weight: 700; color: #fff; margin: 52px 0 16px;
+         padding-top: 16px; border-top: 1px solid var(--border); }
+    h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 28px 0 10px; }
+    h4 { font-size: .95rem; font-weight: 700; color: var(--muted); margin: 20px 0 8px;
+         text-transform: uppercase; letter-spacing: .5px; }
+    p  { margin-bottom: 14px; color: var(--text); }
+
+    a { color: #64b5f6; }
+
+    /* ── Hero ─────────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 36px 40px;
+      margin-bottom: 40px;
+    }
+    .hero .subtitle {
+      font-size: 1.05rem;
+      color: var(--muted);
+      margin-top: 8px;
+      margin-bottom: 0;
+    }
+    .hero .tag-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .tag {
+      background: rgba(233,69,96,.15);
+      color: #ef9a9a;
+      border: 1px solid rgba(233,69,96,.3);
+      border-radius: 20px;
+      padding: 3px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .tag.blue  { background: rgba(21,101,192,.2); color: #90caf9; border-color: rgba(21,101,192,.4); }
+    .tag.green { background: rgba(46,125,50,.2);  color: #a5d6a7; border-color: rgba(46,125,50,.4); }
+
+    /* ── Cards ────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 26px;
+      margin: 18px 0;
+    }
+    .card h3 { margin-top: 0; }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 18px 0;
+    }
+    .card-grid .card { margin: 0; }
+
+    /* ── Steps ────────────────────────────────────────────────────── */
+    .steps { counter-reset: step; list-style: none; }
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .steps li::before {
+      content: counter(step);
+      min-width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .steps li > div { flex: 1; }
+    .steps li strong { display: block; font-size: .95rem; color: #fff; margin-bottom: 4px; }
+
+    /* ── Tab cards ────────────────────────────────────────────────── */
+    .tab-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin: 24px 0;
+    }
+    .tab-card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-icon {
+      width: 40px; height: 40px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .tab-card-header h3 { margin: 0; font-size: 1.1rem; color: #fff; }
+    .tab-card-header p  { margin: 0; font-size: 12.5px; color: var(--muted); }
+    .tab-card-body { padding: 20px 24px; }
+    .tab-card-body p:last-child { margin-bottom: 0; }
+
+    /* ── Code / command ───────────────────────────────────────────── */
+    code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      color: #80cbc4;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      overflow-x: auto;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13.5px;
+      color: #80cbc4;
+      margin: 14px 0;
+      line-height: 1.6;
+    }
+    pre .comment { color: #546e7a; }
+    pre .green   { color: #a5d6a7; }
+    pre .yellow  { color: #fff59d; }
+    pre .red     { color: #ef9a9a; }
+
+    /* ── Callout boxes ────────────────────────────────────────────── */
+    .callout {
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 20px 0;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .callout .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .callout p { margin: 0; font-size: 14px; }
+    .callout strong { display: block; margin-bottom: 4px; }
+    .callout.tip   { background: rgba(46,125,50,.15); border: 1px solid rgba(46,125,50,.35); }
+    .callout.warn  { background: rgba(230,81,0,.15);  border: 1px solid rgba(230,81,0,.35); }
+    .callout.info  { background: rgba(21,101,192,.15);border: 1px solid rgba(21,101,192,.35); }
+    .callout.note  { background: rgba(249,168,37,.12);border: 1px solid rgba(249,168,37,.35); }
+
+    /* ── Tables ───────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: 14px; }
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--card);
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      border-bottom: 1px solid var(--border);
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── Badge / pill ─────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .badge.green  { background: rgba(46,125,50,.25);  color: #a5d6a7; }
+    .badge.red    { background: rgba(198,40,40,.25);  color: #ef9a9a; }
+    .badge.blue   { background: rgba(21,101,192,.25); color: #90caf9; }
+    .badge.orange { background: rgba(230,81,0,.25);   color: #ffcc80; }
+    .badge.grey   { background: rgba(158,158,158,.2); color: #bdbdbd; }
+
+    /* ── Signal bar ───────────────────────────────────────────────── */
+    .signal-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+    }
+    .signal-name { width: 130px; font-size: 13px; color: var(--text); flex-shrink: 0; }
+    .bar-track {
+      flex: 1; height: 8px;
+      background: var(--code-bg);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .signal-weight { width: 36px; text-align: right; font-size: 12px; color: var(--muted); }
+
+    /* ── Decision flow ────────────────────────────────────────────── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 18px 0;
+    }
+    .flow-row {
+      display: flex;
+      align-items: stretch;
+    }
+    .flow-line {
+      width: 2px;
+      background: var(--border);
+      margin-left: 15px;
+      flex-shrink: 0;
+    }
+    .flow-node {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 0 14px 14px;
+    }
+    .flow-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+      border: 2px solid;
+    }
+    .flow-dot.sell  { border-color: #ef5350; background: rgba(239,83,80,.2); }
+    .flow-dot.hold  { border-color: #66bb6a; background: rgba(102,187,106,.2); }
+    .flow-dot.check { border-color: #ffa726; background: rgba(255,167,38,.2); }
+    .flow-content strong { display: block; font-size: .9rem; color: #fff; }
+    .flow-content span   { font-size: 13px; color: var(--muted); }
+
+    /* ── Divider ──────────────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      nav { display: none; }
+      main { padding: 28px 22px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- ══ Sidebar nav ══════════════════════════════════════════════ -->
+  <nav>
+    <div class="nav-logo">
+      <h2>📈 Stock Trader</h2>
+      <p>How-to guide — full usage</p>
+    </div>
+
+    <span class="section-title">Getting started</span>
+    <a href="#overview">Overview</a>
+    <a href="#install">Installation &amp; first run</a>
+    <a href="#first-time">First-time setup</a>
+
+    <span class="section-title">Tabs explained</span>
+    <a href="#tab-dashboard">Dashboard</a>
+    <a href="#tab-agent">Market Monitor &amp; Agent</a>
+    <a href="#tab-predict">Predict</a>
+    <a href="#tab-monitor">Portfolio &amp; Monitor</a>
+    <a href="#tab-ledger">Ledger</a>
+    <a href="#tab-settings">Settings</a>
+
+    <span class="section-title">Core concepts</span>
+    <a href="#signals">The 6 signals explained</a>
+    <a href="#decisions">HOLD / SELL logic</a>
+    <a href="#sizing">Position sizing rules</a>
+    <a href="#goals">Period goals</a>
+
+    <span class="section-title">Workflows</span>
+    <a href="#workflow-auto">Fully autonomous mode</a>
+    <a href="#workflow-manual">Manual prediction only</a>
+    <a href="#workflow-reset">Resetting &amp; starting over</a>
+
+    <span class="section-title">Reference</span>
+    <a href="#config">Key config values</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+
+  <!-- ══ Main content ═════════════════════════════════════════════ -->
+  <main>
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>Stock Predictor &amp; Paper Trader</h1>
+      <p class="subtitle">
+        A desktop app for LSTM-based Nifty 50 price forecasting and autonomous
+        paper trading — fully offline, no broker required.
+      </p>
+      <div class="tag-row">
+        <span class="tag">Nifty 50</span>
+        <span class="tag blue">LSTM Forecasting</span>
+        <span class="tag blue">Multi-signal scoring</span>
+        <span class="tag green">Paper trading only</span>
+        <span class="tag green">No API key needed</span>
+      </div>
+    </div>
+
+    <!-- ══ Overview ════════════════════════════════════════════════ -->
+    <h2 id="overview">Overview</h2>
+    <p>
+      This app watches the Nifty 50 stock universe, trains a personal LSTM
+      neural-network model per stock, blends that forecast with six independent
+      signals, and either recommends or autonomously executes paper trades — all
+      inside a desktop window. No real money changes hands unless you wire up a
+      real broker later.
+    </p>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3>🤖 Auto-monitor</h3>
+        <p>Positions are evaluated with fresh LSTM forecasts on a timer
+        while the app is open. SELL recommendations surface automatically.</p>
+      </div>
+      <div class="card">
+        <h3>📊 LSTM Forecasting</h3>
+        <p>A 2-layer LSTM trained on 5-year daily data predicts the price
+        5 days ahead (swing) or 4 hours ahead (intraday).</p>
+      </div>
+      <div class="card">
+        <h3>⚖️ 6-signal blend</h3>
+        <p>Price forecast, sentiment, sector momentum, fundamentals, macro
+        regime, and diversification — all weighted into one score.</p>
+      </div>
+      <div class="card">
+        <h3>🛡️ Risk guardrails</h3>
+        <p>Stop-loss at −3 %, 75 % portfolio cap, 10 % per-stock cap, and
+        profit goals (min &amp; max) keep risk automatically in check.</p>
+      </div>
+    </div>
+
+    <!-- ══ Installation ═════════════════════════════════════════════ -->
+    <h2 id="install">Installation &amp; first run</h2>
+
+    <ol class="steps">
+      <li>
+        <div>
+          <strong>Make sure Python 3.10 + is installed</strong>
+          Check with <code>python --version</code> in a terminal.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Install dependencies</strong>
+          Open a terminal inside the project folder and run:
+          <pre>pip install -r requirements.txt</pre>
+          This installs PyTorch, yfinance, customtkinter, matplotlib, VADER sentiment,
+          and everything else the app needs.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Launch the app</strong>
+          <pre>python main.py</pre>
+          A dark-mode desktop window opens. Two SQLite databases are created
+          automatically on the first run:
+          <code>portfolio.db</code> (your wallet) and
+          <code>accuracy.db</code> (prediction history).
+        </div>
+      </li>
+    </ol>
+
+    <div class="callout info">
+      <span class="icon">ℹ️</span>
+      <p><strong>No internet key required.</strong>
+      All market data comes from Yahoo Finance (free, no API key). Data is
+      delayed ~15 minutes for NSE — fine for paper trading, not for real
+      intraday execution.</p>
+    </div>
+
+    <!-- ══ First-time setup ════════════════════════════════════════ -->
+    <h2 id="first-time">First-time setup</h2>
+    <p>Do these steps once before the app can trade autonomously.</p>
+
+    <ol class="steps">
+      <li>
+        <div>
+          <strong>Set your starting capital</strong>
+          Go to the <strong>Settings</strong> tab → <em>Total capital available
+          to invest</em> → enter your paper budget (e.g. ₹1,00,000) → click
+          <strong>Set total capital</strong>. This refunds the wallet and resets
+          all history.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Choose a trading mode</strong>
+          Go to the <strong>Agent</strong> tab and pick <em>swing</em> (weekly
+          trades) or <em>intraday</em> (same-day trades) from the Horizon
+          selector. <strong>Swing is recommended for beginners</strong> — it is
+          slower-paced and uses daily data.
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Train the LSTM models — click "Train all (first run)"</strong>
+          The agent needs a trained model for every stock before it can score
+          or trade. Training downloads 5 years of daily data and fits a
+          neural network per stock.
+          <div class="callout warn" style="margin-top:12px;">
+            <span class="icon">⏱️</span>
+            <p>Training all 50 Nifty stocks takes <strong>30 – 60 minutes on
+            CPU</strong> (a few minutes on a GPU). You only do this once.
+            Models are saved to <code>model/trained/</code> and reused on
+            every future run.</p>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>You are ready</strong>
+          The auto-monitor starts 15 seconds after launch. The agent will
+          evaluate your open positions on every tick. Run a buy scan
+          whenever you want to open new positions.
+        </div>
+      </li>
+    </ol>
+
+    <!-- ══ Dashboard tab ═══════════════════════════════════════════ -->
+    <h2 id="tab-dashboard">Tab — Dashboard</h2>
+    <div class="tab-card">
+      <div class="tab-card-header">
+        <div class="tab-icon" style="background:rgba(21,101,192,.25);">🏠</div>
+        <div>
+          <h3>Dashboard</h3>
+          <p>Live snapshot of your paper wallet and period progress</p>
+        </div>
+      </div>
+      <div class="tab-card-body">
+
+        <h4>KPI row (top 6 cards)</h4>
+        <table>
+          <tr><th>Card</th><th>What it means</th></tr>
+          <tr><td><strong>Cash</strong></td><td>Free cash available to spend on new trades.</td></tr>
+          <tr><td><strong>Invested</strong></td><td>Total cost basis of all open positions (qty × buy price).</td></tr>
+          <tr><td><strong>Capital used</strong></td><td>Invested ÷ Equity. The 75 % cap means this stays below 75 %.</td></tr>
+          <tr><td><strong>Equity</strong></td><td>Cash + current market value of all holdings.</td></tr>
+          <tr><td><strong>Realized P&amp;L</strong></td><td>Net profit/loss on all closed (SELL) trades so far.</td></tr>
+          <tr><td><strong>Unrealized P&amp;L</strong></td><td>Paper gain/loss on positions still open (marked to live price).</td></tr>
+        </table>
+
+        <h4>Period goals</h4>
+        <p>
+          Two progress bars — one for <em>Today (intraday)</em> and one for
+          <em>This week (swing)</em> — show how far realized P&amp;L has moved
+          toward the configured profit goal. When a goal is reached the agent
+          stops opening new positions for that horizon until the period resets.
+        </p>
+
+        <h4>Recent trades log</h4>
+        <p>
+          A scrollable text log of the last 50 trades (newest first). Each line
+          shows: timestamp, BUY/SELL, symbol, quantity, price, P&amp;L, and
+          reason. Click <strong>Refresh</strong> to pull the latest from the
+          database.
+        </p>
+      </div>
+    </div>
+
+    <!-- ══ Agent tab ═══════════════════════════════════════════════ -->
+    <h2 id="tab-agent">Tab — Market Monitor &amp; Agent</h2>
+    <div class="tab-card">
+      <div class="tab-card-header">
+        <div class="tab-icon" style="background:rgba(233,69,96,.25);">🤖</div>
+        <div>
+          <h3>Market Monitor &amp; Agent</h3>
+          <p>Auto-monitoring, model training, and the buy-scan agent</p>
+        </div>
+      </div>
+      <div class="tab-card-body">
+
+        <h4>Auto-monitor row (always on)</h4>
+        <p>
+          The app monitors open positions automatically while it is running —
+          no toggle needed. Every N minutes (default 20) it runs a fresh LSTM
+          forecast for every position and applies the HOLD/SELL rules. Results
+          appear in the <strong>Portfolio &amp; Monitor</strong> tab.
+        </p>
+        <table>
+          <tr><th>Control</th><th>What it does</th></tr>
+          <tr><td><code>every [N] min</code></td><td>Change the check interval. Takes effect on the next scheduled tick.</td></tr>
+          <tr><td><strong>Check now</strong></td><td>Trigger an immediate position evaluation and reset the timer.</td></tr>
+          <tr><td><em>Last check: HH:MM</em></td><td>Shows when the most recent evaluation finished.</td></tr>
+          <tr><td><em>Next check in N min</em></td><td>Countdown to the next automatic check.</td></tr>
+        </table>
+
+        <div class="callout tip">
+          <span class="icon">💡</span>
+          <p>When the auto-monitor recommends a SELL, it logs the symbols in this
+          tab and updates the Portfolio &amp; Monitor tab. Go there to review
+          and click <strong>Auto-sell all flagged</strong> to execute.</p>
+        </div>
+
+        <h4>Buttons</h4>
+        <table>
+          <tr><th>Button</th><th>What it does</th><th>When to use</th></tr>
+          <tr>
+            <td><strong>Run buy scan</strong></td>
+            <td>Scores all Nifty 50 stocks not already held, filters by combined
+            score and correlation, then buys the top qualifying picks.</td>
+            <td>When you want the agent to actively open new positions.</td>
+          </tr>
+          <tr>
+            <td><strong>Train all (first run)</strong></td>
+            <td>Trains an LSTM model for every Nifty 50 stock that does not
+            already have a saved model.</td>
+            <td>Once — the first time you launch the app.</td>
+          </tr>
+          <tr>
+            <td><strong>Retrain stale models</strong></td>
+            <td>Re-trains models whose prediction error (MAPE) has risen above
+            4 % as measured by the accuracy tracker.</td>
+            <td>Periodically, especially after volatile market periods.</td>
+          </tr>
+        </table>
+
+        <h4>Output log</h4>
+        <p>
+          The text area shows a real-time log of every agent action:
+          stocks scored, buys executed, sells recommended by the auto-monitor,
+          training progress, and any errors.
+        </p>
+      </div>
+    </div>
+
+    <!-- ══ Predict tab ═════════════════════════════════════════════ -->
+    <h2 id="tab-predict">Tab — Predict</h2>
+    <div class="tab-card">
+      <div class="tab-card-header">
+        <div class="tab-icon" style="background:rgba(46,125,50,.25);">🔮</div>
+        <div>
+          <h3>Predict</h3>
+          <p>Run a manual LSTM forecast for any Nifty 50 stock</p>
+        </div>
+      </div>
+      <div class="tab-card-body">
+
+        <ol class="steps">
+          <li><div><strong>Pick a stock</strong>
+            Choose from the Nifty 50 dropdown (e.g. RELIANCE.NS).
+          </div></li>
+          <li><div><strong>Choose the horizon</strong>
+            <em>Swing</em> = 5-day forecast using daily data. <em>Intraday</em> = 4-hour
+            forecast using hourly data.
+          </div></li>
+          <li><div><strong>Click "Run prediction"</strong>
+            If no model exists for this stock+horizon yet, it trains one first
+            (~1–2 minutes). Otherwise the forecast is instant.
+          </div></li>
+        </ol>
+
+        <h4>Reading the result</h4>
+        <table>
+          <tr><th>Field</th><th>Meaning</th></tr>
+          <tr><td>Current price</td><td>Live price fetched from Yahoo at prediction time.</td></tr>
+          <tr><td>Predicted (end)</td><td>LSTM's estimate of the price at the end of the horizon.</td></tr>
+          <tr><td>Expected return</td><td><code>(predicted − current) / current × 100</code> — the "edge".</td></tr>
+          <tr><td>Confidence</td><td>Roughly <code>1 − recent MAPE</code>. Higher is more reliable.</td></tr>
+          <tr><td>MIN profit target</td><td>The price level at which normal HOLD rules kick in.</td></tr>
+          <tr><td>MAX profit target</td><td>The greed cap — auto-sell fires at or above this price.</td></tr>
+          <tr><td>Suggested qty</td><td>Edge-proportional share count from the position sizer.</td></tr>
+        </table>
+
+        <h4>The chart</h4>
+        <p>
+          A 1-year price history is shown with the multi-step LSTM forecast
+          path overlaid in a different colour. Solid line = history,
+          dashed line = forecast steps. Each step is one trading day (swing)
+          or one hour (intraday).
+        </p>
+
+        <div class="callout note">
+          <span class="icon">📌</span>
+          <p>The Predict tab is for <strong>research only</strong> — it shows
+          you what the model thinks without placing a trade. Use the Agent's
+          <em>Run buy scan</em> to actually open positions based on model output.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Portfolio & Monitor tab ════════════════════════════════ -->
+    <h2 id="tab-monitor">Tab — Portfolio &amp; Monitor</h2>
+    <div class="tab-card">
+      <div class="tab-card-header">
+        <div class="tab-icon" style="background:rgba(249,168,37,.2);">📋</div>
+        <div>
+          <h3>Portfolio &amp; Monitor</h3>
+          <p>Your open positions and the engine's HOLD/SELL decisions</p>
+        </div>
+      </div>
+      <div class="tab-card-body">
+
+        <p>
+          This tab displays every open position alongside the decision engine's
+          verdict. The auto-monitor refreshes this table automatically; you can
+          also force a refresh with the <strong>Refresh decisions</strong> button.
+        </p>
+
+        <h4>Column guide</h4>
+        <table>
+          <tr><th>Column</th><th>Meaning</th></tr>
+          <tr><td>Symbol</td><td>NSE ticker, e.g. <code>INFY.NS</code>.</td></tr>
+          <tr><td>Hor</td><td>Horizon: <code>swing</code> or <code>intraday</code>.</td></tr>
+          <tr><td>Action</td><td><span class="badge green">HOLD</span> or <span class="badge red">SELL</span>.</td></tr>
+          <tr><td>Buy</td><td>Price at which you entered the position.</td></tr>
+          <tr><td>Live</td><td>Current market price.</td></tr>
+          <tr><td>Min ↗</td><td>Minimum profit target price (buy × (1 + MIN%)).</td></tr>
+          <tr><td>Max ↗</td><td>Maximum profit / greed-cap price (buy × (1 + MAX%)).</td></tr>
+          <tr><td>P&amp;L %</td><td>Unrealized gain/loss as a percentage of buy price.</td></tr>
+          <tr><td>Reason</td><td>One-line explanation from the decision engine.</td></tr>
+        </table>
+
+        <h4>Buttons</h4>
+        <table>
+          <tr><th>Button</th><th>Effect</th></tr>
+          <tr>
+            <td><strong>Refresh decisions</strong></td>
+            <td>Runs a fresh LSTM forecast for every position and recomputes
+            HOLD/SELL. Can take a minute if you hold many stocks.</td>
+          </tr>
+          <tr>
+            <td><strong>Auto-sell all flagged</strong></td>
+            <td>Executes every position currently showing <span class="badge red">SELL</span>.
+            Proceeds are returned to your cash balance. Confirm before clicking —
+            this is immediate.</td>
+          </tr>
+        </table>
+
+        <div class="callout tip">
+          <span class="icon">💡</span>
+          <p>Positions showing a <strong>negative P&amp;L</strong> are automatically
+          held (HOLD state) regardless of the model's short-term outlook. They
+          will only sell if the stop-loss is hit (−3 % by default). This prevents
+          locking in a loss just because of a bad single forecast.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Ledger tab ══════════════════════════════════════════════ -->
+    <h2 id="tab-ledger">Tab — Ledger</h2>
+    <div class="tab-card">
+      <div class="tab-card-header">
+        <div class="tab-icon" style="background:rgba(158,158,158,.2);">📒</div>
+        <div>
+          <h3>Ledger</h3>
+          <p>Full trade history, performance stats, and exports</p>
+        </div>
+      </div>
+      <div class="tab-card-body">
+
+        <h4>Summary stats (top bar)</h4>
+        <table>
+          <tr><th>Stat</th><th>Meaning</th></tr>
+          <tr><td>Win rate</td><td>% of closed trades that made a profit.</td></tr>
+          <tr><td>Net P&amp;L</td><td>Gross profit + gross loss across all closed trades.</td></tr>
+          <tr><td>Profit factor</td><td>Gross profit ÷ |Gross loss|. Above 1.5 is solid; below 1.0 means you are losing overall.</td></tr>
+          <tr><td>Avg win / Avg loss</td><td>Average rupee gain on winners vs. average rupee loss on losers.</td></tr>
+          <tr><td>Best / Worst</td><td>Single best and worst trade P&amp;L in rupees.</td></tr>
+        </table>
+
+        <h4>Trade log columns</h4>
+        <p>
+          Each row shows: row number, <strong>Date &amp; Time</strong>
+          (formatted as <code>20-May-2026 14:30</code>), side (BUY / SELL),
+          symbol, quantity, price, P&amp;L, and the reason the trade was made.
+        </p>
+
+        <h4>Buttons</h4>
+        <table>
+          <tr><th>Button</th><th>Effect</th></tr>
+          <tr><td><strong>Refresh</strong></td><td>Reload the trade list and stats from the database.</td></tr>
+          <tr><td><strong>Export CSV</strong></td><td>Save all trades as <code>trade_ledger.csv</code> in the project folder — open in Excel or Google Sheets.</td></tr>
+          <tr><td><strong>Generate report (.md)</strong></td><td>Write a markdown report (<code>trading_report.md</code>) with the full summary table and ledger.</td></tr>
+          <tr><td><strong>Clear Ledger</strong></td><td>Delete all trade records permanently. Your wallet balance and open positions are <em>not</em> affected. Useful when starting a new test cycle.</td></tr>
+        </table>
+
+        <div class="callout warn">
+          <span class="icon">⚠️</span>
+          <p><strong>Clear Ledger is irreversible.</strong> Export a CSV first
+          if you want to keep the history. The wallet and open positions are
+          preserved — only the trade log is wiped.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Settings tab ═══════════════════════════════════════════ -->
+    <h2 id="tab-settings">Tab — Settings</h2>
+    <div class="tab-card">
+      <div class="tab-card-header">
+        <div class="tab-icon" style="background:rgba(100,100,200,.2);">⚙️</div>
+        <div>
+          <h3>Settings</h3>
+          <p>Tune risk rules, capital, and position sizing without editing code</p>
+        </div>
+      </div>
+      <div class="tab-card-body">
+
+        <h4>Risk parameters</h4>
+        <table>
+          <tr><th>Setting</th><th>Default</th><th>What it controls</th></tr>
+          <tr><td>Stop-loss %</td><td>3.0</td><td>Auto-sell when live price falls this far below buy price.</td></tr>
+          <tr><td>Intraday MIN profit %</td><td>1.0</td><td>Below this, position is held (intraday).</td></tr>
+          <tr><td>Intraday MAX profit %</td><td>3.0</td><td>At or above this, auto-sell fires (intraday greed cap).</td></tr>
+          <tr><td>Swing MIN profit %</td><td>3.0</td><td>Below this, position is held (swing).</td></tr>
+          <tr><td>Swing MAX profit %</td><td>6.0</td><td>At or above this, auto-sell fires (swing greed cap).</td></tr>
+          <tr><td>Min buy edge %</td><td>1.0</td><td>Minimum LSTM forecasted return to consider buying.</td></tr>
+          <tr><td>Min hold edge %</td><td>0.5</td><td>If fresh forecast drops below this in the profit zone, lock the gain.</td></tr>
+        </table>
+
+        <h4>Position sizing</h4>
+        <table>
+          <tr><th>Setting</th><th>Default</th><th>What it controls</th></tr>
+          <tr><td>Max invested % (cap)</td><td>75</td><td>Never put more than this % of equity into open positions.</td></tr>
+          <tr><td>Max position %</td><td>10</td><td>Single stock can't exceed this % of equity.</td></tr>
+          <tr><td>Allocation scale (× edge)</td><td>4×</td><td>How aggressively to size up high-edge trades. Edge 2.5 % × 4 = 10 % allocation.</td></tr>
+          <tr><td>Min allocation %</td><td>2</td><td>Don't open a position smaller than this % of equity.</td></tr>
+        </table>
+
+        <div class="callout note">
+          <span class="icon">📌</span>
+          <p>Settings applied here last for the current session only. To make
+          them permanent, edit the values directly in <code>config.py</code>.</p>
+        </div>
+
+        <h4>Total capital / Reset wallet</h4>
+        <p>
+          <strong>Set total capital</strong> — wipes all trades and positions
+          and restarts the wallet with the entered amount.<br>
+          <strong>Reset paper wallet</strong> — same as above but uses the
+          default capital from <code>config.py</code>.
+        </p>
+      </div>
+    </div>
+
+    <!-- ══ 6 signals ══════════════════════════════════════════════ -->
+    <h2 id="signals">The 6 signals explained</h2>
+    <p>
+      When the agent scores a stock, it blends six independent signals into one
+      number between −1 (strong sell) and +1 (strong buy). Only stocks with a
+      combined score above 0.15 are considered for buying.
+    </p>
+
+    <div class="signal-bar">
+      <span class="signal-name">🧠 LSTM forecast</span>
+      <div class="bar-track"><div class="bar-fill" style="width:45%;background:#1565c0;"></div></div>
+      <span class="signal-weight">45 %</span>
+    </div>
+    <div class="signal-bar">
+      <span class="signal-name">📰 Sentiment</span>
+      <div class="bar-track"><div class="bar-fill" style="width:15%;background:#388e3c;"></div></div>
+      <span class="signal-weight">15 %</span>
+    </div>
+    <div class="signal-bar">
+      <span class="signal-name">🏦 Sector momentum</span>
+      <div class="bar-track"><div class="bar-fill" style="width:15%;background:#388e3c;"></div></div>
+      <span class="signal-weight">15 %</span>
+    </div>
+    <div class="signal-bar">
+      <span class="signal-name">📈 Fundamentals</span>
+      <div class="bar-track"><div class="bar-fill" style="width:10%;background:#e65100;"></div></div>
+      <span class="signal-weight">10 %</span>
+    </div>
+    <div class="signal-bar">
+      <span class="signal-name">🏛️ Macro regime</span>
+      <div class="bar-track"><div class="bar-fill" style="width:10%;background:#e65100;"></div></div>
+      <span class="signal-weight">10 %</span>
+    </div>
+    <div class="signal-bar">
+      <span class="signal-name">🔗 Correlation</span>
+      <div class="bar-track"><div class="bar-fill" style="width:5%;background:#795548;"></div></div>
+      <span class="signal-weight">5 %</span>
+    </div>
+
+    <div class="card-grid" style="margin-top:22px;">
+      <div class="card">
+        <h3>🧠 LSTM forecast (45 %)</h3>
+        <p>The model's predicted return for this stock over the chosen horizon.
+        Normalised so a +5 % forecast = score 1.0.</p>
+      </div>
+      <div class="card">
+        <h3>📰 Sentiment (15 %)</h3>
+        <p>VADER sentiment analysis on recent Yahoo Finance news headlines. Positive
+        news → positive score, negative headlines → negative score.</p>
+      </div>
+      <div class="card">
+        <h3>🏦 Sector momentum (15 %)</h3>
+        <p>The 20-day return of the stock's sector index (e.g. ^NSEBANK for bank
+        stocks). Rising sector = positive; falling sector = negative.</p>
+      </div>
+      <div class="card">
+        <h3>📈 Fundamentals (10 %)</h3>
+        <p>Rule-based sanity check on P/E ratio, profit margins, revenue growth,
+        and debt-to-equity. Healthy numbers push the score positive.</p>
+      </div>
+      <div class="card">
+        <h3>🏛️ Macro regime (10 %)</h3>
+        <p>Manually entered in <code>config.py</code>: RBI repo rate direction,
+        inflation vs. target, GDP growth trend. Rate cuts are bullish; high
+        inflation is bearish.</p>
+      </div>
+      <div class="card">
+        <h3>🔗 Correlation (5 %)</h3>
+        <p>A diversification bonus. Stocks that move differently from your existing
+        holdings score higher. Stocks you already hold score −1.</p>
+      </div>
+    </div>
+
+    <!-- ══ HOLD / SELL logic ═══════════════════════════════════════ -->
+    <h2 id="decisions">HOLD / SELL decision logic</h2>
+    <p>
+      For each open position the engine asks "should we exit now?" Rules are
+      tested in order — the <em>first match</em> determines the action.
+    </p>
+
+    <div class="flow">
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="flow-dot sell"></div>
+          <div class="flow-content">
+            <strong>1. Stop-loss hit &rarr; SELL</strong>
+            <span>Live price ≤ buy price × (1 − stop-loss %). Default: −3 %. Hard limit — always fires.</span>
+          </div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-line"></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="flow-dot hold"></div>
+          <div class="flow-content">
+            <strong>2. Below breakeven (P&amp;L &lt; 0 %) &rarr; HOLD</strong>
+            <span>Loss position is held regardless of model outlook. Waiting for recovery to MIN target. Only stop-loss can exit here.</span>
+          </div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-line"></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="flow-dot sell"></div>
+          <div class="flow-content">
+            <strong>3. Max profit reached &rarr; SELL</strong>
+            <span>P&amp;L % ≥ MAX target (e.g. +6 % swing). Greed cap — don't push luck.</span>
+          </div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-line"></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="flow-dot check"></div>
+          <div class="flow-content">
+            <strong>4. In profit zone [MIN, MAX) &rarr; fresh model decides</strong>
+            <span>P&amp;L is between MIN and MAX. A fresh LSTM is run:<br>
+            &nbsp;&nbsp;• Forecast positive → <span class="badge green">HOLD</span> (let it run toward MAX)<br>
+            &nbsp;&nbsp;• Forecast flat/negative → <span class="badge red">SELL</span> (lock the gain)</span>
+          </div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-line"></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="flow-dot hold"></div>
+          <div class="flow-content">
+            <strong>5. Below MIN profit (but positive) &rarr; usually HOLD</strong>
+            <span>Waiting for the price to reach the MIN target. Exits early only if the
+            fresh model turns strongly bearish (below hold threshold) or the
+            horizon has long expired with no progress.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Position sizing ════════════════════════════════════════ -->
+    <h2 id="sizing">Position sizing rules</h2>
+    <p>
+      Every potential buy goes through the sizer before the order is placed.
+      Rules are applied in sequence — all must pass.
+    </p>
+
+    <ol class="steps">
+      <li><div><strong>75 % portfolio cap</strong>
+        <code>invested_cap = equity × 0.75</code>. If adding this position
+        would push total invested above the cap, the trade is skipped.
+      </div></li>
+      <li><div><strong>Edge-driven allocation</strong>
+        <code>target % = edge % × allocation_scale</code> (default 4 ×).
+        A 2 % LSTM edge → target 8 % of equity for this stock.
+      </div></li>
+      <li><div><strong>10 % per-stock cap</strong>
+        Capped at 10 % of equity regardless of how large the edge is.
+      </div></li>
+      <li><div><strong>2 % minimum</strong>
+        If the computed allocation falls below 2 % of equity the trade
+        is skipped (too small to be meaningful).
+      </div></li>
+      <li><div><strong>Cash check</strong>
+        The rupee cost must fit inside both the available budget (75 %
+        cap headroom) and the current cash balance. Otherwise skipped.
+      </div></li>
+    </ol>
+
+    <!-- ══ Period goals ════════════════════════════════════════════ -->
+    <h2 id="goals">Period goals</h2>
+    <p>
+      The app tracks two profit goals to prevent over-trading once you're ahead.
+    </p>
+    <table>
+      <tr><th>Goal</th><th>Horizon</th><th>Period</th><th>Circuit-breaker effect</th></tr>
+      <tr>
+        <td>Daily goal</td>
+        <td>Intraday</td>
+        <td>Resets every calendar day</td>
+        <td>When reached, the agent stops opening new intraday positions until tomorrow.</td>
+      </tr>
+      <tr>
+        <td>Weekly goal</td>
+        <td>Swing</td>
+        <td>Resets every Monday</td>
+        <td>When reached, no new swing buys until the next week starts.</td>
+      </tr>
+    </table>
+    <p>
+      Goal amount = <code>TOTAL_INVESTMENT_AMOUNT × GOAL_TARGET_PCT_OF_CAPITAL</code>
+      (configured in <code>config.py</code>). Progress = realized P&amp;L this
+      period + unrealized P&amp;L on open positions of that horizon.
+    </p>
+
+    <!-- ══ Workflow: auto ══════════════════════════════════════════ -->
+    <h2 id="workflow-auto">Workflow — Fully autonomous mode</h2>
+    <p>
+      Set it up once, leave it running, and check back throughout the day.
+    </p>
+
+    <ol class="steps">
+      <li><div><strong>Complete first-time setup</strong>
+        Train all models, set capital, pick horizon (see <a href="#first-time">First-time setup</a>).
+      </div></li>
+      <li><div><strong>Launch the app and keep the window open</strong>
+        <code>python main.py</code> — minimising is fine, just don't close it.
+        The auto-monitor runs on its timer as long as the process is alive.
+      </div></li>
+      <li><div><strong>Run a buy scan to open positions</strong>
+        Click <strong>Run buy scan</strong> on the Agent tab. The agent scores all
+        50 stocks, filters by combined score and correlation, sizes each pick, and
+        buys the top qualifying ones.
+      </div></li>
+      <li><div><strong>Let the monitor work</strong>
+        Every N minutes the monitor evaluates each position with a fresh model.
+        When it recommends SELL it logs the symbols in the Agent tab and highlights
+        them in the Portfolio tab.
+      </div></li>
+      <li><div><strong>Execute SELL recommendations</strong>
+        Switch to <strong>Portfolio &amp; Monitor</strong> and click
+        <strong>Auto-sell all flagged</strong>. Proceeds return to cash.
+      </div></li>
+      <li><div><strong>Repeat step 3 after sells</strong>
+        Run another buy scan to redeploy the freed cash into the next
+        best-ranked stocks.
+      </div></li>
+    </ol>
+
+    <div class="callout tip">
+      <span class="icon">💡</span>
+      <p>Set the monitor interval to <strong>5 minutes</strong> during active
+      trading hours and <strong>60 minutes</strong> overnight. The
+      <code>every [N] min</code> field on the Agent tab changes it live.</p>
+    </div>
+
+    <!-- ══ Workflow: manual ════════════════════════════════════════ -->
+    <h2 id="workflow-manual">Workflow — Manual prediction only</h2>
+    <p>Use the app purely as a research tool without autonomous trading.</p>
+
+    <ol class="steps">
+      <li><div><strong>Open the Predict tab</strong>
+        Select a stock and horizon, click <strong>Run prediction</strong>.
+      </div></li>
+      <li><div><strong>Read the output</strong>
+        Check expected return, confidence, and the forecast path on the chart.
+        Compare the MIN/MAX targets to decide if the risk/reward makes sense.
+      </div></li>
+      <li><div><strong>Repeat for other stocks</strong>
+        Compare multiple stocks to find the best edge before deciding where to
+        commit capital in your actual brokerage account.
+      </div></li>
+    </ol>
+
+    <!-- ══ Workflow: reset ════════════════════════════════════════ -->
+    <h2 id="workflow-reset">Workflow — Resetting &amp; starting over</h2>
+
+    <div class="card">
+      <h3>Reset the wallet only (keep trade history)</h3>
+      <p>Go to <strong>Settings → Reset paper wallet</strong>. This closes all
+      positions, refunds the wallet to the default capital, but keeps the full
+      trade log in the Ledger.</p>
+    </div>
+
+    <div class="card">
+      <h3>Clear trade history (keep open positions)</h3>
+      <p>Go to <strong>Ledger → Clear Ledger</strong>. Deletes all BUY/SELL
+      records. Open positions and the cash balance are untouched — useful when
+      you want a clean stats baseline without disturbing current holdings.</p>
+    </div>
+
+    <div class="card">
+      <h3>Full fresh start with new capital</h3>
+      <p>Go to <strong>Settings → Total capital → Set total capital</strong>.
+      This wipes <em>everything</em> (positions + ledger) and restarts the
+      wallet with the amount you enter.</p>
+    </div>
+
+    <div class="card">
+      <h3>Delete and retrain a model</h3>
+      <p>Go to <strong>Predict</strong> tab → pick the stock → click
+      <strong>Retrain model</strong>. This downloads fresh data and trains a
+      brand-new model, overwriting the old one. Or use
+      <strong>Retrain stale models</strong> on the Agent tab to retrain every
+      model whose accuracy has slipped.</p>
+    </div>
+
+    <!-- ══ Config reference ════════════════════════════════════════ -->
+    <h2 id="config">Key config values (<code>config.py</code>)</h2>
+    <p>
+      These can be changed in <code>config.py</code> to make settings permanent
+      across sessions (Settings tab only lasts for the current run).
+    </p>
+
+    <pre><span class="comment"># Starting cash for the paper wallet</span>
+<span class="green">INITIAL_PAPER_CASH</span>           = <span class="yellow">100_000.0</span>
+
+<span class="comment"># Risk rules</span>
+<span class="green">STOP_LOSS_PCT</span>                = <span class="yellow">0.03</span>    <span class="comment"># -3 % hard exit</span>
+<span class="green">SWING_MIN_PROFIT_PCT</span>         = <span class="yellow">0.03</span>    <span class="comment"># +3 % floor (swing)</span>
+<span class="green">SWING_MAX_PROFIT_PCT</span>         = <span class="yellow">0.06</span>    <span class="comment"># +6 % greed cap (swing)</span>
+<span class="green">INTRADAY_MIN_PROFIT_PCT</span>      = <span class="yellow">0.01</span>    <span class="comment"># +1 % floor (intraday)</span>
+<span class="green">INTRADAY_MAX_PROFIT_PCT</span>      = <span class="yellow">0.03</span>    <span class="comment"># +3 % greed cap (intraday)</span>
+
+<span class="comment"># Signal blend weights (must add to 1.0)</span>
+<span class="green">SIGNAL_WEIGHTS</span> = {
+    <span class="yellow">"lstm"</span>:         <span class="yellow">0.45</span>,
+    <span class="yellow">"sentiment"</span>:    <span class="yellow">0.15</span>,
+    <span class="yellow">"sector"</span>:       <span class="yellow">0.15</span>,
+    <span class="yellow">"fundamentals"</span>: <span class="yellow">0.10</span>,
+    <span class="yellow">"macro"</span>:        <span class="yellow">0.10</span>,
+    <span class="yellow">"correlation"</span>:  <span class="yellow">0.05</span>,
+}
+
+<span class="comment"># Agent behaviour</span>
+<span class="green">AGENT_MIN_COMBINED_SCORE</span>     = <span class="yellow">0.15</span>    <span class="comment"># minimum score to buy</span>
+<span class="green">AGENT_MAX_NEW_BUYS_PER_CYCLE</span> = <span class="yellow">3</span>       <span class="comment"># max new positions per scan</span>
+<span class="green">AGENT_MAX_CORRELATION</span>        = <span class="yellow">0.85</span>    <span class="comment"># skip if too correlated with holdings</span>
+<span class="green">AGENT_AUTOLOOP_MINUTES</span>       = <span class="yellow">20</span>      <span class="comment"># default auto-monitor interval</span>
+
+<span class="comment"># Manual macro inputs (update when RBI meets or GDP data releases)</span>
+<span class="green">MACRO_INPUTS</span> = {
+    <span class="yellow">"rbi_repo_rate_pct"</span>:    <span class="yellow">6.50</span>,
+    <span class="yellow">"rbi_last_move"</span>:       <span class="yellow">"hold"</span>,  <span class="comment"># "cut", "hike", or "hold"</span>
+    <span class="yellow">"cpi_inflation_pct"</span>:   <span class="yellow">5.0</span>,
+    <span class="yellow">"inflation_target_pct"</span>:<span class="yellow">4.0</span>,
+    <span class="yellow">"gdp_growth_pct"</span>:      <span class="yellow">6.5</span>,
+    <span class="yellow">"gdp_trend"</span>:           <span class="yellow">"stable"</span>, <span class="comment"># "accelerating", "stable", "slowing"</span>
+}</pre>
+
+    <div class="callout note">
+      <span class="icon">📌</span>
+      <p>Update <code>MACRO_INPUTS</code> manually after each RBI Monetary Policy
+      Committee (MPC) meeting or whenever GDP / CPI data is released. This
+      keeps the macro signal accurate.</p>
+    </div>
+
+    <!-- ══ FAQ ════════════════════════════════════════════════════ -->
+    <h2 id="faq">FAQ</h2>
+
+    <div class="card">
+      <h3>The first prediction takes a long time — is that normal?</h3>
+      <p>Yes. The very first prediction for a stock+horizon trains a new LSTM
+      model from scratch (~1–2 minutes on CPU). After that the model is saved
+      and predictions are near-instant.</p>
+    </div>
+
+    <div class="card">
+      <h3>Why is the "Run buy scan" not buying anything?</h3>
+      <p>Several reasons are possible:</p>
+      <ul style="padding-left:20px;margin-top:8px;">
+        <li>No stocks cleared the combined score threshold (0.15). Market conditions may not favour any Nifty 50 stock right now.</li>
+        <li>The 75 % invested cap is already hit — free up cash by selling some positions first.</li>
+        <li>Models are not trained yet — click <strong>Train all</strong> first.</li>
+        <li>The period goal has been reached — no new buys until the period resets.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>A position is negative — when will it sell?</h3>
+      <p>A negative position is held automatically until it recovers to at least
+      the MIN profit target. It will only sell before then if the stop-loss
+      (−3 % by default) is triggered. You can adjust the stop-loss in Settings.</p>
+    </div>
+
+    <div class="card">
+      <h3>How do I update macro data (RBI rate, inflation)?</h3>
+      <p>Open <code>config.py</code> in a text editor, find the
+      <code>MACRO_INPUTS</code> dictionary, and update the values. Restart the
+      app for changes to take effect. Do this after every RBI MPC announcement
+      or major economic data release.</p>
+    </div>
+
+    <div class="card">
+      <h3>Can I use this for real money?</h3>
+      <p>The app is paper-only by design. The real broker interface
+      (<code>trading/broker_interface.py</code>) is a stub that raises
+      <code>NotImplementedError</code>. Before live trading, run at least
+      100 paper trades over 4+ weeks and verify: win rate &gt; 40 %, max
+      drawdown &lt; 10 %, profit factor &gt; 1.5. Only then implement the
+      broker adapter with your Zerodha / Upstox credentials.</p>
+    </div>
+
+    <div class="card">
+      <h3>The model says SELL but I disagree — can I override?</h3>
+      <p>Yes. The auto-monitor only <em>recommends</em> — it never executes
+      without you clicking <strong>Auto-sell all flagged</strong>. You can
+      simply ignore the recommendation and the position stays open. Use
+      <strong>Refresh decisions</strong> later to get an updated verdict.</p>
+    </div>
+
+    <div class="card">
+      <h3>The app is slow / freezing</h3>
+      <p>Heavy operations (LSTM training, scoring 50 stocks) run in background
+      threads so the UI stays responsive. If the window appears stuck, check
+      the Agent tab log — a progress message should appear. On CPU-only machines
+      training all 50 stocks can take 60 minutes; this is expected.</p>
+    </div>
+
+    <footer>
+      Stock Predictor &amp; Paper Trader (India) &mdash; How-to Guide &mdash;
+      For paper trading use only. Not financial advice.
+    </footer>
+
+  </main>
+</div>
+</body>
+</html>
