@@ -128,4 +128,32 @@ This document records, in order, (A) the features and changes **requested**, and
 
 ---
 
-_Last updated: Round 12 — docs reorganisation and README rewrite._
+---
+
+## Section A — Round 13 requests
+
+16. **Single source of truth for stock universe** — price cache should import `NIFTY_50` directly from `nifty50.py` (same list as trainer). Update `requirements.txt` with clear sections.
+17. **Live price without broker account** — design options; async NSE scraping cache chosen.
+18. **Price cache implementation** — async NSE scraper, background thread, no Yahoo fallback for live prices.
+19. **Explain buy criteria / fix negative-prediction buys** — `MIN_PREDICTION_EDGE` was defined but never checked; SBIN bought with negative LSTM because other signals overrode it.
+20. **Low-risk consistent profit rules** — list all missing financial checkpoints for consistent low-risk returns.
+21. **Implement all 5 risk rules** — trailing stop, Nifty trend filter, RSI gate, daily drawdown limit, stagnation exit.
+
+---
+
+## Section B — Round 13 implemented
+
+### Round 13 — Risk rules + live feed
+45. **Single source of truth** (`data/price_cache.py`) — imports `NIFTY_50` from `nifty50.py` directly; `gui/app.py` no longer passes the list. `requirements.txt` rewritten with sections and broker SDK notes.
+46. **NSE async price cache** (`data/price_cache.py`) — `aiohttp` + `asyncio` background thread, 30 s refresh, instant cache reads for monitor/agent. No Yahoo fallback for live prices.
+47. **LSTM edge hard gate** (`agent/agent.py`) — swing ≥ 1.5 %, intraday ≥ 1.0 % enforced before combined score. All three filter gates log rejection reasons to the GUI.
+48. **Trailing stop-loss** (`trading/portfolio.py`, `trading/monitor.py`) — `highest_price_seen` column (auto-migrates existing DBs), `update_trailing_stop()` raises stop as price rises, `evaluate_all()` updates trail before each decision.
+49. **Stagnation exit** (`trading/monitor.py`) — rule 2 in decision ladder; exits flat positions (abs P&L < 0.5 %) after half the horizon elapses.
+50. **Nifty trend filter** (`agent/agent.py`, `data/fetcher.py`) — `get_nifty_trend()` checks `^NSEI` vs 20-day SMA; buy scan aborts when market is in downtrend.
+51. **RSI overbought gate** (`agent/agent.py`, `data/fetcher.py`) — `get_current_rsi()` checked before LSTM call; RSI > 65 at scan time → skip.
+52. **Daily drawdown circuit-breaker** (`agent/agent.py`) — today's P&L < −1.5 % of equity → pause all new buys for the day.
+53. **Docs updated** — decision ladder in `how_to_use.html` extended to 6 steps; FAQ entries updated; `PROJECT_HISTORY.md` extended.
+
+---
+
+_Last updated: Round 13 — five low-risk profit rules implemented._

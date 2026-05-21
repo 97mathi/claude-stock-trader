@@ -30,9 +30,10 @@ class Position:
     buy_date: str
     predicted_target: float    # what the LSTM said when we bought
     expected_return_pct: float
-    stop_loss: float
+    stop_loss: float           # current trailing stop level (moves up with price)
     take_profit: float
     horizon: str               # "swing" or "intraday"
+    highest_price_seen: float  # high-water mark for trailing stop
 
     @property
     def invested(self) -> float:
@@ -80,7 +81,8 @@ class Portfolio:
                     expected_return_pct REAL NOT NULL,
                     stop_loss REAL NOT NULL,
                     take_profit REAL NOT NULL,
-                    horizon TEXT NOT NULL
+                    horizon TEXT NOT NULL,
+                    highest_price_seen REAL NOT NULL DEFAULT 0
                 );
                 CREATE TABLE IF NOT EXISTS trades (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,6 +99,17 @@ class Portfolio:
                 c.execute("INSERT INTO wallet (id, cash) VALUES (1, ?)",
                           (config.INITIAL_PAPER_CASH,))
             c.commit()
+
+        # Migration: add highest_price_seen column to existing databases
+        with self._conn() as c:
+            try:
+                c.execute("ALTER TABLE positions ADD COLUMN highest_price_seen REAL")
+                # Seed existing rows with their buy_price as the starting high-water mark
+                c.execute("UPDATE positions SET highest_price_seen = buy_price "
+                          "WHERE highest_price_seen IS NULL OR highest_price_seen = 0")
+                c.commit()
+            except Exception:
+                pass   # Column already exists — nothing to do
 
     # ----- wallet -----
 
@@ -143,7 +156,8 @@ class Portfolio:
             rows = c.execute("""
                 SELECT symbol, quantity, buy_price, buy_date,
                        predicted_target, expected_return_pct,
-                       stop_loss, take_profit, horizon
+                       stop_loss, take_profit, horizon,
+                       COALESCE(highest_price_seen, buy_price)
                 FROM positions
             """).fetchall()
         return [Position(*r) for r in rows]
@@ -153,6 +167,22 @@ class Portfolio:
             if p.symbol == symbol:
                 return p
         return None
+
+    def update_trailing_stop(self, symbol: str, new_high: float) -> None:
+        """
+        Called by the monitor whenever live price exceeds the stored high-water mark.
+        Raises the stop-loss to trail TRAILING_STOP_PCT below the new high.
+        The stop can only move UP — it never drops back down.
+        """
+        new_stop = new_high * (1 - config.TRAILING_STOP_PCT)
+        with self._conn() as c:
+            c.execute("""
+                UPDATE positions
+                SET highest_price_seen = ?,
+                    stop_loss = MAX(stop_loss, ?)
+                WHERE symbol = ?
+            """, (new_high, new_stop, symbol))
+            c.commit()
 
     # ----- trades -----
 
@@ -210,11 +240,12 @@ class Portfolio:
                 INSERT INTO positions
                 (symbol, quantity, buy_price, buy_date,
                  predicted_target, expected_return_pct,
-                 stop_loss, take_profit, horizon)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 stop_loss, take_profit, horizon, highest_price_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (symbol, quantity, price, now,
                   predicted_target, expected_return_pct,
-                  stop_loss, take_profit, horizon))
+                  stop_loss, take_profit, horizon,
+                  price))
             c.execute("""
                 INSERT INTO trades
                 (timestamp, side, symbol, quantity, price, reason, pnl)

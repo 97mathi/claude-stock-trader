@@ -32,7 +32,7 @@ from typing import Callable
 
 import config
 from nifty50 import NIFTY_50
-from data.fetcher import get_latest_prices, get_latest_price
+from data.fetcher import get_latest_prices, get_latest_price, get_nifty_trend, get_current_rsi
 from model.lstm_model import predict
 from signals.aggregator import score_stock, StockScore
 from signals.macro import macro_signal
@@ -122,6 +122,45 @@ class TradingAgent:
                 "No new positions until the period resets.")
             return report
 
+        # ---- 3b) daily drawdown limit ----
+        if config.MAX_DAILY_DRAWDOWN_PCT > 0:
+            import datetime as _dt
+            today_iso = _dt.date.today().isoformat()
+            today_realized  = self.portfolio.realized_pnl_since(today_iso)
+            summary_now     = self.portfolio.total_value(live_held)
+            equity_now      = max(summary_now["equity"], 1.0)
+            today_unrealized = summary_now["unrealized_pnl"]
+            today_pnl_pct   = (today_realized + today_unrealized) / equity_now
+            if today_pnl_pct < -config.MAX_DAILY_DRAWDOWN_PCT:
+                report.messages.append(
+                    f"Daily drawdown limit hit: portfolio is "
+                    f"{today_pnl_pct*100:.2f}% today "
+                    f"(limit −{config.MAX_DAILY_DRAWDOWN_PCT*100:.1f}%). "
+                    "No new buys — protecting remaining capital.")
+                return report
+
+        # ---- 3c) Nifty trend filter — don't buy into a downtrend ----
+        if config.NIFTY_TREND_FILTER:
+            if progress:
+                progress("Checking Nifty trend", 0, 1)
+            nifty = get_nifty_trend(sma_period=config.NIFTY_TREND_SMA_PERIOD)
+            if not nifty["uptrend"]:
+                detail = (f"Nifty at {nifty['current']:.0f}, "
+                          f"below {config.NIFTY_TREND_SMA_PERIOD}d SMA "
+                          f"{nifty['sma']:.0f} "
+                          f"({nifty['pct_vs_sma']:+.2f}%)"
+                          if nifty["current"] else "trend data unavailable")
+                report.messages.append(
+                    f"Nifty trend filter: market in downtrend ({detail}). "
+                    "No new buys — wait for Nifty to reclaim its "
+                    f"{config.NIFTY_TREND_SMA_PERIOD}-day SMA.")
+                return report
+            else:
+                report.messages.append(
+                    f"Nifty trend: BULLISH — "
+                    f"{nifty['pct_vs_sma']:+.2f}% above "
+                    f"{config.NIFTY_TREND_SMA_PERIOD}d SMA. Proceeding with scan.")
+
         # ---- 4) scan universe & score ----
         corr_mod.clear_cache()           # fresh correlation data each cycle
         macro = macro_signal()           # compute once per cycle
@@ -134,6 +173,15 @@ class TradingAgent:
             if progress:
                 progress(f"Scoring {symbol}", i, total)
             try:
+                # RSI overbought filter — skip before running the heavier LSTM
+                if config.MAX_RSI_AT_BUY > 0:
+                    rsi = get_current_rsi(symbol)
+                    if rsi is not None and rsi > config.MAX_RSI_AT_BUY:
+                        report.skipped.append(
+                            f"{symbol}: RSI {rsi:.1f} > {config.MAX_RSI_AT_BUY:.0f} "
+                            "— overbought, likely near short-term peak, skip")
+                        continue
+
                 pred = predict(symbol, horizon)   # type: ignore
                 # log prediction for future accuracy scoring
                 try:

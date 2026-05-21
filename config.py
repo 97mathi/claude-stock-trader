@@ -15,7 +15,36 @@ TOTAL_INVESTMENT_AMOUNT = 100_000.0  # Same as above on first run; GUI updates i
 DEFAULT_MODE = "paper"
 
 # ----- Risk rules: stop-loss (the safety floor for losses) -----
-STOP_LOSS_PCT = 0.03          # SELL automatically if price drops 3% below buy
+STOP_LOSS_PCT = 0.03          # Initial stop-loss: 3% below buy price
+
+# Trailing stop-loss — follows the price UP, never down.
+# Once price rises, the stop rises with it locking in the gain.
+# e.g. buy Rs.100, price rises to Rs.120 → stop moves to Rs.116.40
+# Always set equal to or tighter than STOP_LOSS_PCT.
+TRAILING_STOP_PCT = 0.03      # Trail 3% below highest price seen
+
+# ----- Nifty market trend filter -----
+# Only open NEW positions when Nifty 50 is above its N-day moving average.
+# Individual stocks follow the index ~70% of the time.
+# Buying in a downtrend fights the current. Set False to disable.
+NIFTY_TREND_FILTER   = True
+NIFTY_TREND_SMA_PERIOD = 20   # Days for the SMA (20 = ~1 trading month)
+
+# ----- RSI overbought filter at entry -----
+# Don't buy a stock whose RSI is already high — the easy move happened.
+# Above 65-70 = overbought territory, likely to pull back.
+MAX_RSI_AT_BUY = 65.0
+
+# ----- Daily portfolio drawdown limit -----
+# If the portfolio is down more than this % on any single day,
+# stop opening new positions for the rest of the day.
+MAX_DAILY_DRAWDOWN_PCT = 0.015   # 1.5% of equity
+
+# ----- Stagnation exit (dead money) -----
+# If a position has barely moved after half its planned duration, exit.
+# Capital sitting flat earns nothing and blocks better opportunities.
+STAGNATION_DAYS_RATIO  = 0.5    # Check after this fraction of horizon has passed
+STAGNATION_MIN_MOVE_PCT = 0.5   # If abs(P&L%) < this after half-time → SELL
 
 # ----- Profit goals (per horizon) -----
 # Logic in monitor.py:

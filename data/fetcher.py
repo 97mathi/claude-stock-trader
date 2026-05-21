@@ -76,6 +76,49 @@ def get_latest_prices(symbols: list[str],
 #  Sector indices & fundamentals                                       #
 # ------------------------------------------------------------------ #
 
+def get_current_rsi(symbol: str, period: int = 14) -> float | None:
+    """
+    Compute the current RSI for a symbol using recent daily closes.
+    Used by the agent to skip overbought stocks at entry.
+    Returns None if data is insufficient or an error occurs.
+    """
+    try:
+        from ta.momentum import RSIIndicator
+        df = get_daily_history(symbol, period="60d")
+        if df.empty or len(df) < period + 5:
+            return None
+        rsi_series = RSIIndicator(close=df["Close"], window=period).rsi()
+        val = rsi_series.iloc[-1]
+        return float(val) if pd.notna(val) else None
+    except Exception:
+        return None
+
+
+def get_nifty_trend(sma_period: int = 20) -> dict:
+    """
+    Check whether the Nifty 50 index is in an uptrend.
+    Returns a dict:
+      uptrend    : bool  — True if Nifty close > N-day SMA (safe to buy)
+      current    : float | None — latest Nifty close
+      sma        : float | None — current SMA value
+      pct_vs_sma : float — how far above/below SMA as a % (positive = above)
+
+    Fails gracefully (uptrend=True) if Yahoo can't serve the data,
+    so a network glitch doesn't freeze the entire buy scan.
+    """
+    try:
+        df = get_daily_history("^NSEI", period="60d")
+        if df.empty or len(df) < sma_period:
+            return {"uptrend": True, "current": None, "sma": None, "pct_vs_sma": 0.0}
+        current = float(df["Close"].iloc[-1])
+        sma     = float(df["Close"].rolling(sma_period).mean().iloc[-1])
+        pct     = (current - sma) / sma * 100.0
+        return {"uptrend": current > sma, "current": current,
+                "sma": sma, "pct_vs_sma": pct}
+    except Exception:
+        return {"uptrend": True, "current": None, "sma": None, "pct_vs_sma": 0.0}
+
+
 def get_index_history(index_symbol: str, period: str = "3mo") -> pd.DataFrame:
     """Daily history for a sector/market index (e.g. '^NSEBANK')."""
     try:

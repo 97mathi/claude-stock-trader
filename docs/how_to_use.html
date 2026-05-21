@@ -956,20 +956,10 @@
         <div class="flow-node">
           <div class="flow-dot sell"></div>
           <div class="flow-content">
-            <strong>1. Stop-loss hit &rarr; SELL</strong>
-            <span>Live price ≤ buy price × (1 − stop-loss %). Default: −3 %. Hard limit — always fires.</span>
-          </div>
-        </div>
-      </div>
-      <div class="flow-row">
-        <div class="flow-line"></div>
-      </div>
-      <div class="flow-row">
-        <div class="flow-node">
-          <div class="flow-dot hold"></div>
-          <div class="flow-content">
-            <strong>2. Below breakeven (P&amp;L &lt; 0 %) &rarr; HOLD</strong>
-            <span>Loss position is held regardless of model outlook. Waiting for recovery to MIN target. Only stop-loss can exit here.</span>
+            <strong>1. Trailing stop hit &rarr; SELL</strong>
+            <span>The stop-loss follows the price <em>up</em>, never down. It starts at buy price − 3 % and rises
+            as the stock climbs. Example: buy Rs.100, rises to Rs.120 → stop moves to Rs.116.40.
+            If price then falls to Rs.116.40 → SELL. You keep Rs.16.40 gain instead of giving it all back.</span>
           </div>
         </div>
       </div>
@@ -980,7 +970,33 @@
         <div class="flow-node">
           <div class="flow-dot sell"></div>
           <div class="flow-content">
-            <strong>3. Max profit reached &rarr; SELL</strong>
+            <strong>2. Stagnation — dead money &rarr; SELL</strong>
+            <span>Half the planned duration has passed (e.g. Day 3 of a 5-day swing) and the stock has
+            moved less than ±0.5 %. Capital stuck in a flat stock earns nothing. Exit and redeploy.</span>
+          </div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-line"></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="flow-dot hold"></div>
+          <div class="flow-content">
+            <strong>3. Below breakeven (P&amp;L &lt; 0 %, not stagnant) &rarr; HOLD</strong>
+            <span>A declining position (moved more than −0.5 %) is held — waiting for recovery to MIN target.
+            Only the trailing stop can force a sell here.</span>
+          </div>
+        </div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-line"></div>
+      </div>
+      <div class="flow-row">
+        <div class="flow-node">
+          <div class="flow-dot sell"></div>
+          <div class="flow-content">
+            <strong>4. Max profit reached &rarr; SELL</strong>
             <span>P&amp;L % ≥ MAX target (e.g. +6 % swing). Greed cap — don't push luck.</span>
           </div>
         </div>
@@ -992,7 +1008,7 @@
         <div class="flow-node">
           <div class="flow-dot check"></div>
           <div class="flow-content">
-            <strong>4. In profit zone [MIN, MAX) &rarr; fresh model decides</strong>
+            <strong>5. In profit zone [MIN, MAX) &rarr; fresh model decides</strong>
             <span>P&amp;L is between MIN and MAX. A fresh LSTM is run:<br>
             &nbsp;&nbsp;• Forecast positive → <span class="badge green">HOLD</span> (let it run toward MAX)<br>
             &nbsp;&nbsp;• Forecast flat/negative → <span class="badge red">SELL</span> (lock the gain)</span>
@@ -1006,10 +1022,9 @@
         <div class="flow-node">
           <div class="flow-dot hold"></div>
           <div class="flow-content">
-            <strong>5. Below MIN profit (but positive) &rarr; usually HOLD</strong>
+            <strong>6. Below MIN profit (but positive) &rarr; usually HOLD</strong>
             <span>Waiting for the price to reach the MIN target. Exits early only if the
-            fresh model turns strongly bearish (below hold threshold) or the
-            horizon has long expired with no progress.</span>
+            fresh model turns strongly bearish or the full horizon has expired with no progress.</span>
           </div>
         </div>
       </div>
@@ -1224,20 +1239,25 @@
 
     <div class="card">
       <h3>Why is the "Run buy scan" not buying anything?</h3>
-      <p>Several reasons are possible:</p>
+      <p>Several reasons are possible (all logged in the Agent tab output):</p>
       <ul style="padding-left:20px;margin-top:8px;">
-        <li>No stocks cleared the combined score threshold (0.15). Market conditions may not favour any Nifty 50 stock right now.</li>
-        <li>The 75 % invested cap is already hit — free up cash by selling some positions first.</li>
-        <li>Models are not trained yet — click <strong>Train all</strong> first.</li>
-        <li>The period goal has been reached — no new buys until the period resets.</li>
+        <li><strong>Nifty in downtrend</strong> — Nifty 50 is below its 20-day SMA. No buys until the market recovers. This is intentional — buying individual stocks against the index direction rarely works.</li>
+        <li><strong>Daily drawdown limit hit</strong> — Portfolio is down more than 1.5 % today. All new buys paused to protect remaining capital.</li>
+        <li><strong>LSTM edge too weak</strong> — Stocks' predicted return is below the minimum (swing 1.5 %, intraday 1.0 %). The model isn't confident enough.</li>
+        <li><strong>RSI overbought</strong> — Stocks' RSI &gt; 65 at scan time. Already extended, likely to pull back.</li>
+        <li><strong>Combined score too low</strong> — No stocks cleared the 0.15 blended signal threshold.</li>
+        <li><strong>75 % invested cap hit</strong> — Free up cash by selling some positions first.</li>
+        <li><strong>Models not trained</strong> — Click <strong>Train all</strong> first.</li>
+        <li><strong>Period goal reached</strong> — No new buys until the period resets.</li>
       </ul>
     </div>
 
     <div class="card">
       <h3>A position is negative — when will it sell?</h3>
-      <p>A negative position is held automatically until it recovers to at least
-      the MIN profit target. It will only sell before then if the stop-loss
-      (−3 % by default) is triggered. You can adjust the stop-loss in Settings.</p>
+      <p>A declining position (P&amp;L below −0.5 %) is held automatically — waiting for recovery to the MIN profit target.
+      It will only sell before then if the <strong>trailing stop-loss</strong> is triggered.
+      The trailing stop starts at buy price − 3 % and rises as the stock gains — so it protects profits automatically.
+      Adjust the trailing stop % in <code>config.py → TRAILING_STOP_PCT</code>.</p>
     </div>
 
     <div class="card">
