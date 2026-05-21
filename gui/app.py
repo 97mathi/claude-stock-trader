@@ -939,7 +939,7 @@ class StockTraderApp(ctk.CTk):
 
         # Reset wallet
         danger = ctk.CTkFrame(root)
-        danger.pack(fill="x", padx=20, pady=20)
+        danger.pack(fill="x", padx=20, pady=(10, 4))
         ctk.CTkLabel(danger, text="Danger zone",
                      font=ctk.CTkFont(weight="bold")
                      ).pack(anchor="w", padx=8, pady=(8, 0))
@@ -947,6 +947,25 @@ class StockTraderApp(ctk.CTk):
                       fg_color="#b71c1c", hover_color="#7f0000",
                       command=self._reset_wallet
                       ).pack(anchor="w", padx=8, pady=8)
+
+        # ---- Saved Models ----
+        mdl = ctk.CTkFrame(root)
+        mdl.pack(fill="both", expand=True, padx=20, pady=(4, 16))
+
+        mdl_header = ctk.CTkFrame(mdl, fg_color="transparent")
+        mdl_header.pack(fill="x", padx=8, pady=(8, 4))
+        ctk.CTkLabel(mdl_header, text="Saved Models",
+                     font=ctk.CTkFont(weight="bold")).pack(side="left")
+        ctk.CTkButton(mdl_header, text="Refresh list", width=100,
+                      command=self._refresh_model_list).pack(side="right", padx=4)
+        ctk.CTkButton(mdl_header, text="Clear all models",
+                      fg_color="#b71c1c", hover_color="#7f0000", width=130,
+                      command=self._clear_all_models).pack(side="right", padx=4)
+
+        self.model_list_box = ctk.CTkTextbox(
+            mdl, font=ctk.CTkFont(family="Consolas", size=11), height=220)
+        self.model_list_box.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        self._refresh_model_list()
 
     def _apply_settings(self):
         try:
@@ -1010,6 +1029,115 @@ class StockTraderApp(ctk.CTk):
             self._refresh_monitor()
             self._refresh_ledger()
             messagebox.showinfo("Reset", "Paper wallet reset.")
+
+    def _refresh_model_list(self):
+        import json
+        import datetime as dt
+
+        box = self.model_list_box
+        box.configure(state="normal")
+        box.delete("1.0", "end")
+
+        model_dir = config.MODEL_DIR
+        if not os.path.isdir(model_dir):
+            box.insert("end", "No models directory found — train a model first.\n")
+            box.configure(state="disabled")
+            return
+
+        pt_files = sorted(f for f in os.listdir(model_dir) if f.endswith(".pt"))
+        if not pt_files:
+            box.insert("end", "No trained models yet. Use 'Train all' in the Agent tab.\n")
+            box.configure(state="disabled")
+            return
+
+        header = (f"{'Symbol':<20} {'Horizon':<10} {'Dir Acc':>8} "
+                  f"{'Val Loss':>10} {'Size':>8}  Trained\n")
+        box.insert("end", header)
+        box.insert("end", "─" * 82 + "\n")
+
+        total_size = 0
+        for fname in pt_files:
+            fpath = os.path.join(model_dir, fname)
+            size_bytes = os.path.getsize(fpath)
+            total_size += size_bytes
+            mtime = dt.datetime.fromtimestamp(
+                os.path.getmtime(fpath)).strftime("%d-%b-%Y %H:%M")
+
+            # Parse symbol + horizon from filename e.g. RELIANCE_NS_swing.pt
+            stem = fname[:-3]
+            if stem.endswith("_swing"):
+                horizon = "swing"
+                raw_sym = stem[:-6]
+            elif stem.endswith("_intraday"):
+                horizon = "intraday"
+                raw_sym = stem[:-9]
+            else:
+                horizon = "?"
+                raw_sym = stem
+            # Restore dots: _NS -> .NS, _BO -> .BO, and -> &
+            symbol = (raw_sym
+                      .replace("_NS", ".NS")
+                      .replace("_BO", ".BO")
+                      .replace("and", "&"))
+
+            # Pull accuracy stats from companion .json meta file
+            meta_path = os.path.join(model_dir, fname.replace(".pt", ".json"))
+            dir_acc_str = "—"
+            val_loss_str = "—"
+            if os.path.exists(meta_path):
+                try:
+                    with open(meta_path) as mf:
+                        meta = json.load(mf)
+                    if "wf_dir_acc" in meta:
+                        dir_acc_str = f"{meta['wf_dir_acc']*100:.1f}%"
+                    if "val_loss" in meta:
+                        val_loss_str = f"{meta['val_loss']:.5f}"
+                except Exception:
+                    pass
+
+            line = (f"{symbol:<20} {horizon:<10} {dir_acc_str:>8} "
+                    f"{val_loss_str:>10} {size_bytes/1024:>6.0f} KB  {mtime}\n")
+            box.insert("end", line)
+
+        box.insert("end", "─" * 82 + "\n")
+        box.insert("end",
+                   f"{len(pt_files)} models  |  "
+                   f"Total size: {total_size/1024/1024:.1f} MB\n")
+        box.configure(state="disabled")
+
+    def _clear_all_models(self):
+        model_dir = config.MODEL_DIR
+        if not os.path.isdir(model_dir):
+            messagebox.showinfo("No models", "No model directory found.")
+            return
+
+        files = [f for f in os.listdir(model_dir)
+                 if f.endswith(".pt") or f.endswith(".json")]
+        n_models = sum(1 for f in files if f.endswith(".pt"))
+        if n_models == 0:
+            messagebox.showinfo("No models", "No trained models to delete.")
+            return
+
+        if not messagebox.askyesno(
+                "Clear all models",
+                f"Delete all {n_models} trained models (weights + metadata)?\n\n"
+                "The next prediction will retrain from scratch — this can take "
+                "20-40 min per stock.\n\nThis cannot be undone."):
+            return
+
+        deleted, failed = 0, 0
+        for fname in files:
+            try:
+                os.remove(os.path.join(model_dir, fname))
+                deleted += 1
+            except Exception:
+                failed += 1
+
+        self._refresh_model_list()
+        msg = f"Deleted {deleted} files."
+        if failed:
+            msg += f"\n{failed} files could not be deleted (in use?)."
+        messagebox.showinfo("Models cleared", msg)
 
     # ============================================================
     # Mode switch
