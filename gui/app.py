@@ -880,26 +880,31 @@ class StockTraderApp(ctk.CTk):
     # Settings tab
     # ============================================================
     def _build_settings(self, root):
-        f = ctk.CTkFrame(root)
-        f.pack(fill="x", padx=20, pady=20)
+        # Scrollable container so every section is always reachable
+        scroll = ctk.CTkScrollableFrame(root)
+        scroll.pack(fill="both", expand=True, padx=4, pady=4)
+
+        # ---- Risk / profit settings ----
+        f = ctk.CTkFrame(scroll)
+        f.pack(fill="x", padx=16, pady=(16, 8))
 
         rows = [
-            ("Stop-loss %",             f"{config.STOP_LOSS_PCT*100:.1f}"),
-            ("Intraday MIN profit %",   f"{config.INTRADAY_MIN_PROFIT_PCT*100:.1f}"),
-            ("Intraday MAX profit %",   f"{config.INTRADAY_MAX_PROFIT_PCT*100:.1f}"),
-            ("Swing MIN profit %",      f"{config.SWING_MIN_PROFIT_PCT*100:.1f}"),
-            ("Swing MAX profit %",      f"{config.SWING_MAX_PROFIT_PCT*100:.1f}"),
-            ("Min buy edge %",          f"{config.MIN_PREDICTION_EDGE*100:.1f}"),
-            ("Min hold edge %",         f"{config.MIN_HOLD_CONFIDENCE*100:.1f}"),
-            ("Max invested % (cap)",    f"{config.MAX_INVESTED_PCT*100:.1f}"),
-            ("Max position %",          f"{config.MAX_POSITION_PCT*100:.1f}"),
-            ("Allocation scale (x edge)", f"{config.ALLOCATION_SCALE:.1f}"),
-            ("Min allocation %",        f"{config.MIN_ALLOCATION_PCT*100:.1f}"),
+            ("Stop-loss %",               f"{config.STOP_LOSS_PCT*100:.1f}"),
+            ("Intraday MIN profit %",      f"{config.INTRADAY_MIN_PROFIT_PCT*100:.1f}"),
+            ("Intraday MAX profit %",      f"{config.INTRADAY_MAX_PROFIT_PCT*100:.1f}"),
+            ("Swing MIN profit %",         f"{config.SWING_MIN_PROFIT_PCT*100:.1f}"),
+            ("Swing MAX profit %",         f"{config.SWING_MAX_PROFIT_PCT*100:.1f}"),
+            ("Min buy edge %",             f"{config.MIN_PREDICTION_EDGE*100:.1f}"),
+            ("Min hold edge %",            f"{config.MIN_HOLD_CONFIDENCE*100:.1f}"),
+            ("Max invested % (cap)",       f"{config.MAX_INVESTED_PCT*100:.1f}"),
+            ("Max position %",             f"{config.MAX_POSITION_PCT*100:.1f}"),
+            ("Allocation scale (x edge)",  f"{config.ALLOCATION_SCALE:.1f}"),
+            ("Min allocation %",           f"{config.MIN_ALLOCATION_PCT*100:.1f}"),
         ]
         self.settings_entries = {}
         for i, (label, val) in enumerate(rows):
             ctk.CTkLabel(f, text=label).grid(row=i, column=0,
-                                              sticky="w", padx=8, pady=6)
+                                             sticky="w", padx=8, pady=6)
             e = ctk.CTkEntry(f, width=120)
             e.insert(0, val)
             e.grid(row=i, column=1, padx=8, pady=6)
@@ -907,19 +912,17 @@ class StockTraderApp(ctk.CTk):
 
         ctk.CTkLabel(f, text="Tip: MIN = lock-in floor, MAX = greed cap. "
                              "P&L between them is decided by a fresh prediction.",
-                     text_color="#9aa4b2",
-                     font=ctk.CTkFont(size=11)
+                     text_color="#9aa4b2", font=ctk.CTkFont(size=11)
                      ).grid(row=len(rows), column=0, columnspan=2,
                             sticky="w", padx=8, pady=(8, 0))
-
         ctk.CTkButton(f, text="Apply settings",
                       command=self._apply_settings
                       ).grid(row=len(rows)+1, column=0, columnspan=2,
                              pady=12, sticky="ew")
 
-        # Total capital
-        cap = ctk.CTkFrame(root)
-        cap.pack(fill="x", padx=20, pady=(0, 10))
+        # ---- Total capital ----
+        cap = ctk.CTkFrame(scroll)
+        cap.pack(fill="x", padx=16, pady=8)
         ctk.CTkLabel(cap, text="Total capital available to invest",
                      font=ctk.CTkFont(weight="bold")
                      ).pack(anchor="w", padx=8, pady=(8, 0))
@@ -937,9 +940,9 @@ class StockTraderApp(ctk.CTk):
                      text_color="#9aa4b2", font=ctk.CTkFont(size=11)
                      ).pack(anchor="w", padx=8, pady=(0, 8))
 
-        # Reset wallet
-        danger = ctk.CTkFrame(root)
-        danger.pack(fill="x", padx=20, pady=(10, 4))
+        # ---- Danger zone ----
+        danger = ctk.CTkFrame(scroll)
+        danger.pack(fill="x", padx=16, pady=8)
         ctk.CTkLabel(danger, text="Danger zone",
                      font=ctk.CTkFont(weight="bold")
                      ).pack(anchor="w", padx=8, pady=(8, 0))
@@ -949,8 +952,8 @@ class StockTraderApp(ctk.CTk):
                       ).pack(anchor="w", padx=8, pady=8)
 
         # ---- Saved Models ----
-        mdl = ctk.CTkFrame(root)
-        mdl.pack(fill="both", expand=True, padx=20, pady=(4, 16))
+        mdl = ctk.CTkFrame(scroll)
+        mdl.pack(fill="x", padx=16, pady=(8, 20))
 
         mdl_header = ctk.CTkFrame(mdl, fg_color="transparent")
         mdl_header.pack(fill="x", padx=8, pady=(8, 4))
@@ -963,8 +966,8 @@ class StockTraderApp(ctk.CTk):
                       command=self._clear_all_models).pack(side="right", padx=4)
 
         self.model_list_box = ctk.CTkTextbox(
-            mdl, font=ctk.CTkFont(family="Consolas", size=11), height=220)
-        self.model_list_box.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+            mdl, font=ctk.CTkFont(family="Consolas", size=11), height=260)
+        self.model_list_box.pack(fill="x", padx=8, pady=(0, 8))
         self._refresh_model_list()
 
     def _apply_settings(self):
