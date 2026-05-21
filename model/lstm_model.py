@@ -274,7 +274,8 @@ def _existing_wf_combined(symbol: str, horizon: Horizon) -> float | None:
 
 
 def train(symbol: str, horizon: Horizon = "swing",
-          epochs: int | None = None) -> dict:
+          epochs: int | None = None,
+          force_save: bool = False) -> dict:
     """
     Train (or retrain) the LSTM for one symbol & horizon.
 
@@ -283,8 +284,13 @@ def train(symbol: str, horizon: Horizon = "swing",
       2. Walk-forward search across _ARCH_CANDIDATES — pick the architecture
          with the best combined MAE + directional-accuracy score.
       3. Compare against the currently saved model's walk-forward score.
-         If the new model is NOT better, keep the old one and return early.
-      4. Save weights (.pt) + metadata (.json) only when the new model wins.
+         If the new model is NOT better AND force_save=False, keep the old one.
+      4. Save weights (.pt) + metadata (.json) only when the new model wins
+         (or force_save=True).
+
+    force_save=True: always overwrite regardless of comparison.
+    Use this when the existing model is already known to be bad (e.g. triggered
+    by MAPE > threshold in accuracy tracker) — no point defending a failing model.
 
     Returns the metadata dict (same as what goes into the .json file).
     The dict includes "retrain_skipped": True if the old model was kept.
@@ -328,12 +334,15 @@ def train(symbol: str, horizon: Horizon = "swing",
     best_dir_acc = float(best_wf.get("dir_acc", 0.5))
 
     # ---- Compare against existing saved model ----
-    # Only overwrite the saved .pt if the new model is provably better.
-    # "Better" = lower walk-forward combined score (MAE + directional error).
-    # Old models trained before walk-forward was added have no score → always
-    # upgrade them (None means no baseline to defend).
+    # Only overwrite if new model is provably better OR caller forced a save.
+    # force_save=True is used by retrain_stale(): the old model is already known
+    # to be failing in production (MAPE > threshold), so no point defending it.
+    # For voluntary retrains (user clicking "Retrain"), we protect the old model
+    # unless the new one actually wins.
     old_combined = _existing_wf_combined(symbol, horizon)
-    if old_combined is not None and best_combined >= old_combined:
+    if (not force_save
+            and old_combined is not None
+            and best_combined >= old_combined):
         # New model did not beat the saved one — keep the existing file.
         with open(_meta_path(symbol, horizon)) as f:
             kept_meta = json.load(f)

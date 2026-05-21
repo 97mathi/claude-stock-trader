@@ -618,11 +618,9 @@ class StockTraderApp(ctk.CTk):
                     "No models flagged as inaccurate yet (need resolved "
                     "predictions first).\n"))
             else:
-                kept = len(res.get("kept", []))
                 msg = (f"Retrained {len(res['retrained'])} of {res['checked']} "
-                       f"flagged models.")
-                if kept:
-                    msg += f" {kept} kept (existing model was better)."
+                       f"flagged models (MAPE > {config.RETRAIN_ERROR_THRESHOLD_PCT}%)."
+                       f" New walk-forward models saved for all.")
                 self.after(0, lambda m=msg: self._agent_log(m + "\n"))
         except Exception as e:
             self.after(0, lambda: self._agent_log(f"Retrain error: {e}\n"))

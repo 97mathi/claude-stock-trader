@@ -82,11 +82,10 @@ def retrain_stale(progress: ProgressCb | None = None) -> dict:
         if progress:
             progress(f"Retraining {symbol} ({horizon})", i - 1, total)
         try:
-            meta = train(symbol, horizon)   # type: ignore
-            if meta.get("retrain_skipped"):
-                kept.append((symbol, horizon))   # new model wasn't better
-            else:
-                trained.append((symbol, horizon))
+            # force_save=True: old model already proven bad by MAPE tracker,
+            # always overwrite with the new walk-forward-selected model.
+            meta = train(symbol, horizon, force_save=True)   # type: ignore
+            trained.append((symbol, horizon))
         except Exception as e:
             failed.append((symbol, str(e)))
         if progress:
