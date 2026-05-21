@@ -5,8 +5,12 @@ What it does, in plain English:
   1. Take historical bars + technical indicators.
   2. Scale all numbers to 0..1 (neural networks learn better that way).
   3. Slice the data into rolling windows: [previous 60 bars] -> [next bar's close].
-  4. Train a small LSTM network.
-  5. Iteratively predict N steps into the future (feed the prediction back in).
+  4. Walk-forward search: try 4 architectures over 2 expanding folds, pick the
+     one with lowest combined MAE + directional-error. Directional accuracy is
+     weighted 60% because for trading we care more about up/down direction than
+     exact price level.
+  5. Final training on full 85% split with the winning architecture.
+  6. Iteratively predict N steps into the future (feed the prediction back in).
 
 Why PyTorch instead of TensorFlow?
   - PyTorch supports newer Python versions (3.9-3.13) — TensorFlow lags behind.
@@ -39,6 +43,21 @@ Horizon = Literal["swing", "intraday"]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+# -------------------- architecture search candidates --------------------
+# Four candidates covering small/medium/large and varying regularisation.
+# The walk-forward search picks the winner for each stock/horizon pair.
+
+_ARCH_CANDIDATES: list[dict] = [
+    {"hidden1": 32,  "hidden2": 16, "dropout": 0.1},   # small – fast, low capacity
+    {"hidden1": 64,  "hidden2": 32, "dropout": 0.2},   # medium – former default
+    {"hidden1": 128, "hidden2": 64, "dropout": 0.2},   # large  – higher capacity
+    {"hidden1": 64,  "hidden2": 32, "dropout": 0.3},   # medium + stronger dropout
+]
+
+_WF_FOLDS = 2        # number of walk-forward folds per architecture
+_WF_EPOCH_DIV = 3    # fold epochs = full_epochs // this  (keeps search fast)
+
+
 @dataclass
 class Prediction:
     symbol: str
@@ -47,7 +66,7 @@ class Prediction:
     predicted_price: float        # price at the end of the forecast horizon
     predicted_path: list[float]   # step-by-step forecast values
     expected_return_pct: float    # (predicted - current) / current * 100
-    confidence: float             # rough 0..1 score (1 - normalized recent error)
+    confidence: float             # directional accuracy from walk-forward (0..1)
 
 
 # -------------------- model definition --------------------
@@ -103,13 +122,149 @@ def _meta_path(symbol: str, horizon: Horizon) -> str:
     return os.path.join(config.MODEL_DIR, f"{safe}_{horizon}.json")
 
 
+# -------------------- single-fold training --------------------
+
+def _train_fold(X_tr: np.ndarray, y_tr: np.ndarray,
+                X_val: np.ndarray, y_val: np.ndarray,
+                arch: dict, epochs: int,
+                patience: int = 4) -> tuple[LSTMRegressor, float]:
+    """
+    Train one LSTMRegressor on a train/val split.
+    Returns (best_model, best_val_loss).
+    Uses early stopping with `patience` epochs of no improvement.
+    """
+    model = LSTMRegressor(
+        n_features=X_tr.shape[2],
+        hidden1=arch["hidden1"],
+        hidden2=arch["hidden2"],
+        dropout=arch["dropout"],
+    ).to(DEVICE)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    loss_fn = nn.MSELoss()
+
+    train_ds = TensorDataset(torch.from_numpy(X_tr), torch.from_numpy(y_tr))
+    train_dl = DataLoader(train_ds, batch_size=config.LSTM_BATCH_SIZE,
+                          shuffle=True)
+    X_val_t = torch.from_numpy(X_val).to(DEVICE)
+    y_val_t = torch.from_numpy(y_val).to(DEVICE)
+
+    best_val = float("inf")
+    best_state: dict | None = None
+    bad = 0
+
+    for _ in range(epochs):
+        model.train()
+        for xb, yb in train_dl:
+            xb, yb = xb.to(DEVICE), yb.to(DEVICE)
+            optimizer.zero_grad()
+            loss_fn(model(xb), yb).backward()
+            optimizer.step()
+
+        model.eval()
+        with torch.no_grad():
+            vl = float(loss_fn(model(X_val_t), y_val_t).item())
+
+        if vl < best_val - 1e-6:
+            best_val = vl
+            best_state = {k: v.detach().cpu().clone()
+                          for k, v in model.state_dict().items()}
+            bad = 0
+        else:
+            bad += 1
+            if bad >= patience:
+                break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    return model, best_val
+
+
+# -------------------- walk-forward evaluation --------------------
+
+def _walk_forward_score(X: np.ndarray, y: np.ndarray,
+                         arch: dict, epochs: int) -> dict:
+    """
+    Expanding-window walk-forward cross-validation for one architecture.
+
+    Data is divided into (_WF_FOLDS + 1) equal chunks.
+    Fold k trains on chunks [0..k] and validates on chunk [k+1].
+    This mimics real usage: the model always sees only past data.
+
+    Scoring (lower combined = better):
+      combined = 0.4 * avg_MAE + 0.6 * (1 - avg_directional_accuracy)
+
+    Directional accuracy is weighted 60% because knowing whether the stock
+    will go UP or DOWN is more actionable than knowing the exact price.
+
+    Returns dict: {"mae", "dir_acc", "combined"}
+    """
+    n = len(X)
+    chunk = n // (_WF_FOLDS + 1)
+    if chunk < 20:
+        # Not enough data — return neutral score (won't beat a real result)
+        return {"mae": 0.05, "dir_acc": 0.5, "combined": 0.325}
+
+    fold_epochs = max(8, epochs // _WF_EPOCH_DIV)
+    all_mae: list[float] = []
+    all_dir: list[float] = []
+
+    for fold in range(_WF_FOLDS):
+        train_end = chunk * (fold + 1)
+        val_end   = train_end + chunk
+
+        X_tr  = X[:train_end].astype(np.float32)
+        y_tr  = y[:train_end].astype(np.float32)
+        X_val = X[train_end:val_end].astype(np.float32)
+        y_val = y[train_end:val_end].astype(np.float32)
+
+        if len(X_tr) < 30 or len(X_val) < 5:
+            continue
+
+        model, _ = _train_fold(X_tr, y_tr, X_val, y_val,
+                                arch, fold_epochs, patience=3)
+
+        model.eval()
+        with torch.no_grad():
+            preds = model(
+                torch.from_numpy(X_val).to(DEVICE)
+            ).cpu().numpy()
+
+        mae = float(np.mean(np.abs(preds - y_val)))
+
+        # Directional accuracy: did we predict up/down vs previous bar correctly?
+        if len(y_val) > 1:
+            actual_dir = np.sign(np.diff(y_val))
+            pred_dir   = np.sign(preds[1:] - y_val[:-1])
+            dir_acc    = float(np.mean(actual_dir == pred_dir))
+        else:
+            dir_acc = 0.5
+
+        all_mae.append(mae)
+        all_dir.append(dir_acc)
+
+    avg_mae = float(np.mean(all_mae)) if all_mae else 0.05
+    avg_dir = float(np.mean(all_dir)) if all_dir else 0.5
+    combined = 0.4 * avg_mae + 0.6 * (1.0 - avg_dir)
+
+    return {"mae": avg_mae, "dir_acc": avg_dir, "combined": combined}
+
+
 # -------------------- training --------------------
 
 def train(symbol: str, horizon: Horizon = "swing",
           epochs: int | None = None) -> dict:
     """
     Train (or retrain) the LSTM for one symbol & horizon.
-    Returns a small dict with training stats.
+
+    Steps:
+      1. Fetch historical data and compute features.
+      2. Walk-forward search across _ARCH_CANDIDATES — pick the architecture
+         with the best combined MAE + directional-accuracy score.
+      3. Final full training on 85% of data with the winning architecture.
+      4. Save weights (.pt) + metadata (.json) to MODEL_DIR.
+
+    Returns the metadata dict (same as what goes into the .json file).
     """
     epochs = epochs or config.LSTM_EPOCHS
     lookback = config.LSTM_LOOKBACK_DAYS
@@ -130,69 +285,58 @@ def train(symbol: str, horizon: Horizon = "swing",
     target_idx = FEATURE_COLUMNS.index(TARGET_COLUMN)
 
     X, y = _make_windows(scaled, lookback, target_idx)
+
+    # ---- Walk-forward architecture search ----
+    best_arch = _ARCH_CANDIDATES[1]   # medium as safe fallback
+    best_combined = float("inf")
+    arch_results: list[dict] = []
+
+    for arch in _ARCH_CANDIDATES:
+        score = _walk_forward_score(X, y, arch, epochs)
+        arch_results.append({**arch, **score})
+        if score["combined"] < best_combined:
+            best_combined = score["combined"]
+            best_arch = arch
+
+    best_wf = next(
+        (r for r in arch_results if r["hidden1"] == best_arch["hidden1"]
+         and r["dropout"] == best_arch["dropout"]), {}
+    )
+    best_dir_acc = float(best_wf.get("dir_acc", 0.5))
+
+    # ---- Final training on full 85% split with winning architecture ----
     split = int(len(X) * 0.85)
-    X_train, X_val = X[:split], X[split:]
-    y_train, y_val = y[:split], y[split:]
+    X_train = X[:split].astype(np.float32)
+    y_train = y[:split].astype(np.float32)
+    X_val   = X[split:].astype(np.float32)
+    y_val   = y[split:].astype(np.float32)
 
-    train_ds = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
-    train_dl = DataLoader(train_ds, batch_size=config.LSTM_BATCH_SIZE,
-                          shuffle=True)
-    X_val_t = torch.from_numpy(X_val).to(DEVICE)
-    y_val_t = torch.from_numpy(y_val).to(DEVICE)
+    model, best_val = _train_fold(
+        X_train, y_train, X_val, y_val,
+        best_arch, epochs, patience=4,
+    )
 
-    model = LSTMRegressor(n_features=X.shape[2]).to(DEVICE)
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    loss_fn = nn.MSELoss()
-
-    best_val = float("inf")
-    best_state = None
-    patience = 4
-    bad_epochs = 0
-
-    for epoch in range(epochs):
-        model.train()
-        for xb, yb in train_dl:
-            xb = xb.to(DEVICE)
-            yb = yb.to(DEVICE)
-            optimizer.zero_grad()
-            pred = model(xb)
-            loss = loss_fn(pred, yb)
-            loss.backward()
-            optimizer.step()
-
-        model.eval()
-        with torch.no_grad():
-            val_pred = model(X_val_t)
-            val_loss = float(loss_fn(val_pred, y_val_t).item())
-
-        if val_loss < best_val - 1e-6:
-            best_val = val_loss
-            best_state = {k: v.detach().cpu().clone()
-                          for k, v in model.state_dict().items()}
-            bad_epochs = 0
-        else:
-            bad_epochs += 1
-            if bad_epochs >= patience:
-                break  # early stopping
-
-    # Restore best weights
-    if best_state is not None:
-        model.load_state_dict(best_state)
-
-    # Persist model weights + meta
-    torch.save({"state_dict": model.state_dict(),
-                "n_features": X.shape[2]}, _model_path(symbol, horizon))
+    # ---- Persist model weights + meta ----
+    torch.save(
+        {"state_dict": model.state_dict(),
+         "n_features":  X.shape[2],
+         "arch":        best_arch},
+        _model_path(symbol, horizon),
+    )
 
     meta = {
-        "symbol": symbol,
-        "horizon": horizon,
-        "feature_columns": FEATURE_COLUMNS,
-        "target_column": TARGET_COLUMN,
-        "lookback": lookback,
-        "scaler_min": scaler.data_min_.tolist(),
-        "scaler_max": scaler.data_max_.tolist(),
-        "val_loss": float(best_val if best_val != float("inf") else 0.99),
-        "train_rows": int(len(X_train)),
+        "symbol":           symbol,
+        "horizon":          horizon,
+        "feature_columns":  FEATURE_COLUMNS,
+        "target_column":    TARGET_COLUMN,
+        "lookback":         lookback,
+        "scaler_min":       scaler.data_min_.tolist(),
+        "scaler_max":       scaler.data_max_.tolist(),
+        "val_loss":         float(best_val if best_val != float("inf") else 0.99),
+        "train_rows":       int(len(X_train)),
+        "arch":             best_arch,
+        "wf_dir_acc":       best_dir_acc,     # directional accuracy from search
+        "arch_search":      arch_results,     # full leaderboard for inspection
     }
     with open(_meta_path(symbol, horizon), "w") as f:
         json.dump(meta, f, indent=2)
@@ -204,7 +348,7 @@ def train(symbol: str, horizon: Horizon = "swing",
 
 def _load(symbol: str, horizon: Horizon):
     """Load saved model + meta, training first if missing."""
-    mpath = _model_path(symbol, horizon)
+    mpath    = _model_path(symbol, horizon)
     metapath = _meta_path(symbol, horizon)
     if not (os.path.exists(mpath) and os.path.exists(metapath)):
         train(symbol, horizon)
@@ -212,8 +356,16 @@ def _load(symbol: str, horizon: Horizon):
     with open(metapath) as f:
         meta = json.load(f)
 
-    checkpoint = torch.load(mpath, map_location=DEVICE)
-    model = LSTMRegressor(n_features=checkpoint["n_features"]).to(DEVICE)
+    checkpoint = torch.load(mpath, map_location=DEVICE, weights_only=False)
+    # Backward-compatible: old checkpoints saved without "arch" key
+    arch = checkpoint.get("arch", {"hidden1": 64, "hidden2": 32, "dropout": 0.2})
+
+    model = LSTMRegressor(
+        n_features=checkpoint["n_features"],
+        hidden1=arch["hidden1"],
+        hidden2=arch["hidden2"],
+        dropout=arch["dropout"],
+    ).to(DEVICE)
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
     return model, meta
@@ -225,9 +377,9 @@ def predict(symbol: str, horizon: Horizon = "swing") -> Prediction:
     Trains the model on the fly if no saved one exists.
     """
     model, meta = _load(symbol, horizon)
-    lookback = meta["lookback"]
+    lookback     = meta["lookback"]
     feature_cols = meta["feature_columns"]
-    target_idx = feature_cols.index(meta["target_column"])
+    target_idx   = feature_cols.index(meta["target_column"])
 
     raw = get_daily_history(symbol, "1y") if horizon == "swing" \
         else get_hourly_history(symbol, "60d")
@@ -236,17 +388,17 @@ def predict(symbol: str, horizon: Horizon = "swing") -> Prediction:
         raise RuntimeError(
             f"Not enough recent data for {symbol} to predict.")
 
-    feats = df[feature_cols].values
-    data_min = np.array(meta["scaler_min"])
-    data_max = np.array(meta["scaler_max"])
+    feats      = df[feature_cols].values
+    data_min   = np.array(meta["scaler_min"])
+    data_max   = np.array(meta["scaler_max"])
     data_range = data_max - data_min + 1e-9
-    scaled = (feats - data_min) / data_range
+    scaled     = (feats - data_min) / data_range
 
     window = scaled[-lookback:, :].copy().astype(np.float32)
-    steps = config.SWING_HORIZON_DAYS if horizon == "swing" \
+    steps  = config.SWING_HORIZON_DAYS if horizon == "swing" \
         else config.INTRADAY_HORIZON_BARS
 
-    path_scaled = []
+    path_scaled: list[float] = []
     with torch.no_grad():
         for _ in range(steps):
             x = torch.from_numpy(window).unsqueeze(0).to(DEVICE)
@@ -264,13 +416,17 @@ def predict(symbol: str, horizon: Horizon = "swing") -> Prediction:
         for v in path_scaled
     ]
 
-    current_price = float(df[meta["target_column"]].iloc[-1])
+    current_price   = float(df[meta["target_column"]].iloc[-1])
     predicted_price = path_unscaled[-1]
     expected_return = (predicted_price - current_price) / current_price * 100.0
 
-    # Very simple "confidence": 1 - clipped validation loss.
-    val_loss = float(meta.get("val_loss", 0.01))
-    confidence = max(0.0, min(1.0, 1.0 - val_loss * 10))
+    # Confidence = walk-forward directional accuracy (0..1).
+    # Old models that don't have wf_dir_acc fall back to a val_loss proxy.
+    if "wf_dir_acc" in meta:
+        confidence = float(meta["wf_dir_acc"])
+    else:
+        val_loss   = float(meta.get("val_loss", 0.01))
+        confidence = max(0.0, min(1.0, 1.0 - val_loss * 10))
 
     return Prediction(
         symbol=symbol,
