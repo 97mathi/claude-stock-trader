@@ -17,10 +17,10 @@ model/trained/*.json
 # SQLite databases (runtime state, not source)
 *.db
 
-# Exports / generated files
+# Exports / generated files (root-level only)
 trade_ledger.csv
 trading_report.md
-design_diagram.png
+/design_diagram.png
 
 # OS
 .DS_Store

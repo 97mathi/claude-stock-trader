@@ -840,6 +840,34 @@
           <strong>Reset paper wallet</strong> — same as above but uses the
           default capital from <code>config.py</code>.
         </p>
+
+        <h4>Saved Models</h4>
+        <p>
+          Scroll down to the <strong>Saved Models</strong> section to see every
+          trained model currently on disk. The list shows one row per model with:
+        </p>
+        <table>
+          <tr><th>Column</th><th>What it means</th></tr>
+          <tr><td>Symbol</td><td>NSE ticker (e.g. <code>RELIANCE.NS</code>).</td></tr>
+          <tr><td>Horizon</td><td><code>swing</code> or <code>intraday</code>.</td></tr>
+          <tr><td>Dir Acc</td><td>Walk-forward directional accuracy — how often the model called up/down correctly across unseen folds. Higher is better.</td></tr>
+          <tr><td>Val Loss</td><td>Validation loss on the final training run. Lower is better.</td></tr>
+          <tr><td>Size</td><td>File size of the <code>.pt</code> weight file.</td></tr>
+          <tr><td>Trained</td><td>Date the model was last saved.</td></tr>
+        </table>
+        <p>A footer line shows the total model count and combined disk usage.</p>
+        <table>
+          <tr><th>Button</th><th>Effect</th></tr>
+          <tr><td><strong>Refresh list</strong></td><td>Re-scans <code>model/trained/</code> and reloads the table — useful after training completes.</td></tr>
+          <tr><td><strong>Clear all models</strong></td><td>Deletes every <code>.pt</code> and <code>.json</code> file. The next prediction or agent scan will retrain from scratch (~20–40 min for all 50 stocks). Use only when models are systematically misbehaving.</td></tr>
+        </table>
+
+        <div class="callout warn">
+          <span class="icon">⚠️</span>
+          <p><strong>Clear all models is irreversible.</strong> All training
+          time is lost. The app still works immediately — it will just retrain
+          each stock on demand — but expect slow responses until models are rebuilt.</p>
+        </div>
       </div>
     </div>
 
