@@ -19,6 +19,7 @@ from tkinter import messagebox
 import config
 from nifty50 import NIFTY_50
 from data.fetcher import get_daily_history, get_latest_price, get_latest_prices
+from data.price_cache import price_cache
 from model.lstm_model import predict, train, Prediction
 from trading.portfolio import Portfolio
 from trading.monitor import evaluate_all, auto_execute
@@ -54,7 +55,7 @@ class StockTraderApp(ctk.CTk):
         self._build_layout()
         self._refresh_dashboard()
         self._start_auto_monitor()
-        # Stop the loop cleanly if the window is closed
+        self._start_price_cache()
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
     # ============================================================
@@ -522,6 +523,10 @@ class StockTraderApp(ctk.CTk):
             auto, text="", text_color="#9aa4b2")
         self.monitor_next_lbl.pack(side="left", padx=4)
 
+        self.cache_status_lbl = ctk.CTkLabel(
+            auto, text="○ NSE cache: starting...", text_color="#9aa4b2")
+        self.cache_status_lbl.pack(side="right", padx=12)
+
         # Progress
         self.agent_progress = ctk.CTkProgressBar(root)
         self.agent_progress.pack(fill="x", padx=14, pady=(0, 4))
@@ -750,7 +755,28 @@ class StockTraderApp(ctk.CTk):
             self._monitor_after_id = None
         self._monitor_tick()
 
+    def _start_price_cache(self):
+        if config.PRICE_CACHE_INTERVAL_SECS <= 0:
+            return
+        price_cache.on_update = self._on_cache_update
+        price_cache.start(NIFTY_50, interval=config.PRICE_CACHE_INTERVAL_SECS)
+
+    def _on_cache_update(self, updated: int, total: int):
+        """Called by the cache thread after each scrape cycle."""
+        def upd():
+            try:
+                st = price_cache.status()
+                ts = st["last_run"].strftime("%H:%M:%S") if st["last_run"] else "—"
+                dot = "●" if updated > 0 else "○"
+                self.cache_status_lbl.configure(
+                    text=f"{dot} NSE cache: {updated}/{total}  {ts}",
+                    text_color="#69db7c" if updated > 0 else "#ff6b6b")
+            except Exception:
+                pass
+        self.after(0, upd)
+
     def _on_close(self):
+        price_cache.stop()
         if self._monitor_after_id is not None:
             try:
                 self.after_cancel(self._monitor_after_id)

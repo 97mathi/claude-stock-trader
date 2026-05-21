@@ -60,6 +60,12 @@ LSTM_BATCH_SIZE = 32
 SWING_HORIZON_DAYS = 5           # Predict 5 days ahead for swing trading
 INTRADAY_HORIZON_BARS = 4        # Predict 4 hourly bars ahead for intraday
 
+# ----- Price cache (NSE scraping) -----
+# Background thread scrapes all Nifty 50 prices from NSE every N seconds.
+# Lower = fresher data but more requests; 30 s is a safe default.
+# Set to 0 to disable (get_latest_price returns None until cache warms up).
+PRICE_CACHE_INTERVAL_SECS = 30
+
 # ----- Database -----
 DB_PATH = "portfolio.db"         # SQLite file (created on first run)
 

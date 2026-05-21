@@ -1,23 +1,15 @@
 """
-Data fetcher: pulls historical and live prices from Yahoo Finance.
+Data fetcher.
 
-Live-price strategy (fastest-first waterfall):
-  1. yf.Ticker.fast_info["last_price"]   — single lightweight HTTP call (~0.3 s)
-  2. yf.download 1-min bars fallback     — heavier but reliable (~3 s)
+Live prices  →  data/price_cache.py  (NSE scrape, ~1-3 min delay, no HTTP here)
+Historical OHLCV  →  Yahoo Finance (used only for LSTM training, not live prices)
 
-Batch fetching (get_latest_prices) runs all symbols in parallel threads
-(max 10 at once) so 50 Nifty stocks take ~3-5 s instead of ~30 s.
-
-Delay note:
-  Yahoo Finance delays NSE data by ~15 minutes on their free feed.
-  This is fine for paper trading and swing-trade monitoring.
-  For real intraday trading swap to a broker WebSocket feed
-  (Zerodha Kite / Upstox / Angel SmartAPI) — see broker_interface.py.
+get_latest_price()  and  get_latest_prices()  are thin wrappers that read from
+the PriceCache singleton started by the GUI at launch.  They return None during
+the first ~30 s before the cache's first cycle completes.
 """
 
 from __future__ import annotations
-import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
 import yfinance as yf
@@ -54,61 +46,30 @@ def get_hourly_history(symbol: str, period: str = "60d") -> pd.DataFrame:
 
 def get_latest_price(symbol: str) -> float | None:
     """
-    Best-effort latest price for one symbol.
+    Returns the latest known price for one symbol.
 
-    Waterfall:
-      1. fast_info["last_price"]  — quickest path (~0.3 s per call)
-      2. 1-min bar download       — heavier fallback (~3 s)
+    Source priority:
+      1. PriceCache (NSE scrape, ~1-3 min delay) — used if cache has ANY value
+         for this symbol, even if stale. NSE data is always fresher than Yahoo.
+      2. None — returned when cache is empty for this symbol (first ~30 s after
+         app start, before the first scrape cycle completes).
 
-    ⚠ Yahoo NSE data is delayed ~15 min on the free feed.
-    Fine for paper trading; use a broker WebSocket for real intraday.
+    Yahoo Finance is NOT used here — its ~15-min delay makes it worse than any
+    cached NSE value. Yahoo is only used for historical OHLCV (model training).
     """
-    # -- Fast path --
-    try:
-        t    = yf.Ticker(symbol)
-        info = getattr(t, "fast_info", None)
-        if info is not None:
-            price = info.get("last_price") if hasattr(info, "get") \
-                else getattr(info, "last_price", None)
-            if price and float(price) > 0:
-                return float(price)
-    except Exception:
-        pass
-
-    # -- Fallback: last close of today's 1-min bars --
-    try:
-        df = yf.download(symbol, period="1d", interval="1m",
-                         progress=False, auto_adjust=True)
-        df = _flatten(df)
-        if len(df) > 0:
-            return float(df["Close"].iloc[-1])
-    except Exception:
-        pass
-
-    return None
+    from data.price_cache import price_cache
+    return price_cache.get(symbol)
 
 
 def get_latest_prices(symbols: list[str],
                       max_workers: int = 10) -> dict[str, float | None]:
     """
-    Parallel batch price fetch — all symbols fetched concurrently.
-
-    Uses a ThreadPoolExecutor so 50 stocks take ~3-5 s instead of ~30 s.
-    max_workers=10 keeps Yahoo from rate-limiting (60 req/min limit).
+    Batch price read — all values come from the in-memory PriceCache instantly.
+    No HTTP calls; the cache background thread handles fetching independently.
+    `max_workers` kept for API compatibility but is unused.
     """
-    results: dict[str, float | None] = {}
-
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        future_to_sym = {pool.submit(get_latest_price, s): s
-                         for s in symbols}
-        for future in as_completed(future_to_sym):
-            sym = future_to_sym[future]
-            try:
-                results[sym] = future.result()
-            except Exception:
-                results[sym] = None
-
-    return results
+    from data.price_cache import price_cache
+    return price_cache.get_many(symbols)
 
 
 # ------------------------------------------------------------------ #

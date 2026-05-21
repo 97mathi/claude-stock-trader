@@ -1,4 +1,5 @@
 # Core
+aiohttp>=3.9.0               # async HTTP for NSE price cache
 yfinance>=0.2.40
 pandas>=2.0.0
 numpy>=1.26.0
