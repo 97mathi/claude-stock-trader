@@ -50,7 +50,15 @@ MAX_INVESTED_PCT = 0.75          # Keep at least 25% of equity in cash reserve
 MAX_POSITION_PCT = 0.10          # Single-stock cap: max 10% of equity
 ALLOCATION_SCALE = 4.0           # edge% x scale = target position % of equity
 MIN_ALLOCATION_PCT = 0.02        # Below this, skip trade (too small to matter)
-MIN_PREDICTION_EDGE = 0.01       # Only BUY if model predicts at least +1% gain
+MIN_PREDICTION_EDGE = 0.01       # Legacy — kept for Settings tab display (decimal)
+
+# Minimum LSTM-predicted return required before the agent will even consider
+# buying. These are HARD gates — negative or weak predictions are rejected
+# regardless of how good sentiment/sector/macro look.
+# Values are in percentage points (e.g. 1.5 means the model must predict ≥+1.5%).
+SWING_MIN_LSTM_EDGE_PCT    = 1.5   # swing: need ≥1.5% predicted over 5 days
+INTRADAY_MIN_LSTM_EDGE_PCT = 1.0   # intraday: need ≥1.0% predicted over ~4 h
+
 MIN_HOLD_CONFIDENCE = 0.0        # Below-min-profit: sell if fresh edge < this
 
 # ----- LSTM model -----
@@ -74,6 +82,16 @@ MODEL_DIR = "model/trained"
 
 
 # ----- Helpers used by other modules -----
+
+def min_lstm_edge_for(horizon: str) -> float:
+    """
+    Minimum LSTM-predicted return (in percentage points) required to buy.
+    e.g. returns 1.5 → model must predict at least +1.5% gain.
+    """
+    if horizon == "intraday":
+        return INTRADAY_MIN_LSTM_EDGE_PCT
+    return SWING_MIN_LSTM_EDGE_PCT
+
 
 def profit_goals_for(horizon: str) -> tuple[float, float]:
     """

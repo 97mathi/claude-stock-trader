@@ -154,15 +154,32 @@ class TradingAgent:
         report.ranked = ranked
 
         # ---- 5) filter ----
+        min_edge = config.min_lstm_edge_for(horizon)
         picks = []
         for sc in ranked:
-            if sc.combined < config.AGENT_MIN_COMBINED_SCORE:
+            # Hard gate 1: LSTM must predict a positive gain above the minimum.
+            # Sentiment/sector/macro cannot override a bearish price forecast —
+            # we never buy a stock the model thinks will fall.
+            if sc.lstm_edge_pct < min_edge:
+                report.skipped.append(
+                    f"{sc.symbol}: LSTM edge {sc.lstm_edge_pct:+.2f}% "
+                    f"< {min_edge:.1f}% minimum — bearish/weak forecast, skip")
                 continue
+
+            # Hard gate 2: blended score must be broadly bullish.
+            if sc.combined < config.AGENT_MIN_COMBINED_SCORE:
+                report.skipped.append(
+                    f"{sc.symbol}: combined score {sc.combined:+.3f} "
+                    f"< {config.AGENT_MIN_COMBINED_SCORE} threshold, skip")
+                continue
+
+            # Hard gate 3: not too correlated with an existing holding.
             if sc.max_abs_corr > config.AGENT_MAX_CORRELATION:
                 report.skipped.append(
                     f"{sc.symbol}: too correlated ({sc.max_abs_corr:.2f}) "
                     f"with {sc.most_correlated_with}")
                 continue
+
             picks.append(sc)
             if len(picks) >= config.AGENT_MAX_NEW_BUYS_PER_CYCLE:
                 break
