@@ -34,6 +34,8 @@ import time
 from datetime import datetime
 from typing import Callable
 
+from nifty50 import NIFTY_50 as _DEFAULT_UNIVERSE
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -94,20 +96,23 @@ class PriceCache:
     #  Control                                                             #
     # ------------------------------------------------------------------ #
 
-    def start(self, symbols: list[str], interval: int = 30) -> None:
-        """Start the background scraping thread. Safe to call multiple times."""
+    def start(self, symbols: list[str] | None = None, interval: int = 30) -> None:
+        """Start the background scraping thread. Safe to call multiple times.
+        symbols defaults to NIFTY_50 from nifty50.py — the same list used by
+        the trainer — so training and scraping always stay in sync.
+        """
         if self._running:
             return
         if not _AIOHTTP_OK:
             return
-        self._symbols  = list(symbols)
+        self._symbols  = list(symbols or _DEFAULT_UNIVERSE)
         self._interval = max(10, interval)
         self._running  = True
         self._thread   = threading.Thread(
             target=self._loop, name="PriceCache", daemon=True)
         self._thread.start()
         logger.info("PriceCache started — %d symbols, interval %ds",
-                    len(symbols), interval)
+                    len(self._symbols), self._interval)
 
     def stop(self) -> None:
         self._running = False

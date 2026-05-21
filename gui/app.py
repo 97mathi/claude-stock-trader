@@ -759,7 +759,9 @@ class StockTraderApp(ctk.CTk):
         if config.PRICE_CACHE_INTERVAL_SECS <= 0:
             return
         price_cache.on_update = self._on_cache_update
-        price_cache.start(NIFTY_50, interval=config.PRICE_CACHE_INTERVAL_SECS)
+        # No symbol list passed — cache imports NIFTY_50 directly from nifty50.py,
+        # the same source used by the trainer, so they always stay in sync.
+        price_cache.start(interval=config.PRICE_CACHE_INTERVAL_SECS)
 
     def _on_cache_update(self, updated: int, total: int):
         """Called by the cache thread after each scrape cycle."""

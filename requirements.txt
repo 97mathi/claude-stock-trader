@@ -1,22 +1,37 @@
-# Core
-aiohttp>=3.9.0               # async HTTP for NSE price cache
-yfinance>=0.2.40
+# ── Live price feed ────────────────────────────────────────────────────────────
+aiohttp>=3.9.0               # async HTTP — NSE price cache (data/price_cache.py)
+
+# ── Market data (historical OHLCV + fundamentals + news) ──────────────────────
+yfinance>=0.2.40             # Yahoo Finance — training data only (not live prices)
+
+# ── Data processing ────────────────────────────────────────────────────────────
 pandas>=2.0.0
 numpy>=1.26.0
 
-# Machine Learning
-scikit-learn>=1.3.0
-torch>=2.2.0                 # PyTorch - LSTM model engine
+# ── Machine learning ───────────────────────────────────────────────────────────
+torch>=2.2.0                 # PyTorch — LSTM model engine
+scikit-learn>=1.3.0          # MinMaxScaler for feature normalisation
 
-# Technical indicators
-ta>=0.11.0                   # RSI, MACD, etc.
+# ── Technical indicators ───────────────────────────────────────────────────────
+ta>=0.11.0                   # RSI, MACD, EMA, SMA, Bollinger Bands
 
-# News sentiment (optional but recommended)
-vaderSentiment>=3.3.2        # Headline sentiment scoring
+# ── Sentiment ──────────────────────────────────────────────────────────────────
+vaderSentiment>=3.3.2        # Headline sentiment scoring (no API key needed)
 
-# GUI
-customtkinter>=5.2.0         # Modern desktop UI
-matplotlib>=3.7.0            # Charts
-pillow>=10.0.0               # Image support for customtkinter
+# ── GUI ────────────────────────────────────────────────────────────────────────
+customtkinter>=5.2.0         # Modern dark-mode desktop UI
+matplotlib>=3.7.0            # Price + forecast charts
+pillow>=10.0.0               # Image support required by customtkinter
 
-# Storage (SQLite is built into Python)
+# ── Storage ────────────────────────────────────────────────────────────────────
+# SQLite is part of the Python standard library — no extra package needed.
+
+# ── Notes ──────────────────────────────────────────────────────────────────────
+# NewsAPI (optional): sentiment.py uses urllib (stdlib) to call newsapi.org.
+#   No extra package needed — just set NEWSAPI_KEY in config.py or env.
+#
+# Real-money broker (optional): trading/broker_interface.py is a stub.
+#   Add the broker SDK here when you implement it:
+#   kiteconnect>=5.0.0        # Zerodha Kite Connect
+#   upstox-python-sdk>=2.0.0  # Upstox v2
+#   smartapi-python>=1.3.0    # Angel One SmartAPI
