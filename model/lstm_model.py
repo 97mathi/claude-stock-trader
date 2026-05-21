@@ -252,6 +252,27 @@ def _walk_forward_score(X: np.ndarray, y: np.ndarray,
 
 # -------------------- training --------------------
 
+def _existing_wf_combined(symbol: str, horizon: Horizon) -> float | None:
+    """
+    Return the walk-forward combined score stored in the saved model's meta JSON,
+    or None if the file doesn't exist or was trained before walk-forward was added.
+    Used by train() to decide whether to overwrite a saved model.
+    """
+    meta_path = _meta_path(symbol, horizon)
+    if not os.path.exists(meta_path):
+        return None
+    try:
+        with open(meta_path) as f:
+            meta = json.load(f)
+        arch_search = meta.get("arch_search", [])
+        if arch_search:
+            # Best (lowest) combined score from the saved arch search leaderboard
+            return min(r.get("combined", float("inf")) for r in arch_search)
+    except Exception:
+        pass
+    return None   # old model without walk-forward data → always upgrade
+
+
 def train(symbol: str, horizon: Horizon = "swing",
           epochs: int | None = None) -> dict:
     """
@@ -261,10 +282,12 @@ def train(symbol: str, horizon: Horizon = "swing",
       1. Fetch historical data and compute features.
       2. Walk-forward search across _ARCH_CANDIDATES — pick the architecture
          with the best combined MAE + directional-accuracy score.
-      3. Final full training on 85% of data with the winning architecture.
-      4. Save weights (.pt) + metadata (.json) to MODEL_DIR.
+      3. Compare against the currently saved model's walk-forward score.
+         If the new model is NOT better, keep the old one and return early.
+      4. Save weights (.pt) + metadata (.json) only when the new model wins.
 
     Returns the metadata dict (same as what goes into the .json file).
+    The dict includes "retrain_skipped": True if the old model was kept.
     """
     epochs = epochs or config.LSTM_EPOCHS
     lookback = config.LSTM_LOOKBACK_DAYS
@@ -304,6 +327,21 @@ def train(symbol: str, horizon: Horizon = "swing",
     )
     best_dir_acc = float(best_wf.get("dir_acc", 0.5))
 
+    # ---- Compare against existing saved model ----
+    # Only overwrite the saved .pt if the new model is provably better.
+    # "Better" = lower walk-forward combined score (MAE + directional error).
+    # Old models trained before walk-forward was added have no score → always
+    # upgrade them (None means no baseline to defend).
+    old_combined = _existing_wf_combined(symbol, horizon)
+    if old_combined is not None and best_combined >= old_combined:
+        # New model did not beat the saved one — keep the existing file.
+        with open(_meta_path(symbol, horizon)) as f:
+            kept_meta = json.load(f)
+        kept_meta["retrain_skipped"] = True
+        kept_meta["new_combined"]    = round(best_combined, 6)
+        kept_meta["old_combined"]    = round(old_combined, 6)
+        return kept_meta
+
     # ---- Final training on full 85% split with winning architecture ----
     split = int(len(X) * 0.85)
     X_train = X[:split].astype(np.float32)
@@ -316,7 +354,7 @@ def train(symbol: str, horizon: Horizon = "swing",
         best_arch, epochs, patience=4,
     )
 
-    # ---- Persist model weights + meta ----
+    # ---- Persist model weights + meta (new model won) ----
     torch.save(
         {"state_dict": model.state_dict(),
          "n_features":  X.shape[2],

@@ -76,17 +76,20 @@ def retrain_stale(progress: ProgressCb | None = None) -> dict:
     tracker.resolve_due()
     stale = tracker.models_needing_retrain()
 
-    trained, failed = [], []
+    trained, kept, failed = [], [], []
     total = len(stale)
     for i, (symbol, horizon) in enumerate(stale, start=1):
         if progress:
             progress(f"Retraining {symbol} ({horizon})", i - 1, total)
         try:
-            train(symbol, horizon)   # type: ignore
-            trained.append((symbol, horizon))
+            meta = train(symbol, horizon)   # type: ignore
+            if meta.get("retrain_skipped"):
+                kept.append((symbol, horizon))   # new model wasn't better
+            else:
+                trained.append((symbol, horizon))
         except Exception as e:
             failed.append((symbol, str(e)))
         if progress:
             progress(f"Done {symbol}", i, total)
 
-    return {"retrained": trained, "failed": failed, "checked": total}
+    return {"retrained": trained, "kept": kept, "failed": failed, "checked": total}

@@ -313,9 +313,15 @@ class StockTraderApp(ctk.CTk):
     def _retrain(self, symbol: str, horizon: str):
         try:
             meta = train(symbol, horizon)  # type: ignore
-            self.after(0, lambda: self._log_result(
-                f"Retrained. Validation loss: {meta['val_loss']:.5f}\n"
-            ))
+            if meta.get("retrain_skipped"):
+                msg = (f"Existing model kept — new walk-forward score "
+                       f"({meta['new_combined']:.4f}) did not beat saved model "
+                       f"({meta['old_combined']:.4f}). Old model is better.\n")
+            else:
+                msg = (f"Retrained. New model saved. "
+                       f"Walk-forward dir acc: {meta.get('wf_dir_acc', 0)*100:.1f}%  "
+                       f"Val loss: {meta['val_loss']:.5f}\n")
+            self.after(0, lambda: self._log_result(msg))
         except Exception as e:
             self.after(0, lambda: self._log_result(f"ERROR: {e}\n"))
 
@@ -612,9 +618,12 @@ class StockTraderApp(ctk.CTk):
                     "No models flagged as inaccurate yet (need resolved "
                     "predictions first).\n"))
             else:
-                self.after(0, lambda: self._agent_log(
-                    f"Retrained {len(res['retrained'])} of {res['checked']} "
-                    "flagged models.\n"))
+                kept = len(res.get("kept", []))
+                msg = (f"Retrained {len(res['retrained'])} of {res['checked']} "
+                       f"flagged models.")
+                if kept:
+                    msg += f" {kept} kept (existing model was better)."
+                self.after(0, lambda m=msg: self._agent_log(m + "\n"))
         except Exception as e:
             self.after(0, lambda: self._agent_log(f"Retrain error: {e}\n"))
         finally:
