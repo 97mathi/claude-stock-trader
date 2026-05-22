@@ -3,6 +3,27 @@ Central settings for the app. Change values here to tune behavior.
 All amounts are in Indian Rupees (INR).
 """
 
+# =====================================================================
+# TRADING UNIVERSE
+# =====================================================================
+# What instruments the agent scans, trains models for, and the price
+# cache scrapes.  Change via the GUI (Agent tab → Universe) — do NOT
+# edit this manually unless you also retrain models for the new set.
+#
+# Values:
+#   "nifty50"   — 50 individual NSE stocks (default, higher risk/return)
+#   "funds"     — curated ETF list from funds.py (lower risk, recommended
+#                  for beginners or capital preservation)
+#   "both"      — union of both universes (large, slow to train)
+#
+# IMPORTANT SEQUENCE:
+#   1. Set this value (here or via GUI)
+#   2. Click "Train all" to build models for the chosen universe
+#   3. Then run the buy scan
+# Skipping step 2 after changing universe will cause the agent to use
+# stale models trained on completely different instruments.
+ACTIVE_UNIVERSE = "nifty50"
+
 # ----- Paper trading wallet -----
 # This is the TOTAL amount of capital available to invest. You can change it
 # from the GUI (Settings tab -> "Set total capital") or here.
@@ -111,6 +132,27 @@ MODEL_DIR = "model/trained"
 
 
 # ----- Helpers used by other modules -----
+
+def get_active_universe() -> list[str]:
+    """
+    Return the current symbol list based on ACTIVE_UNIVERSE.
+    Always imports fresh so GUI changes to ACTIVE_UNIVERSE are reflected
+    without restarting.
+    """
+    from nifty50 import NIFTY_50
+    from funds import ALL_FUNDS
+    if ACTIVE_UNIVERSE == "funds":
+        return ALL_FUNDS
+    if ACTIVE_UNIVERSE == "both":
+        seen: set[str] = set()
+        combined = []
+        for s in NIFTY_50 + ALL_FUNDS:
+            if s not in seen:
+                seen.add(s)
+                combined.append(s)
+        return combined
+    return NIFTY_50   # default: "nifty50"
+
 
 def min_lstm_edge_for(horizon: str) -> float:
     """

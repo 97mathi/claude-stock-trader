@@ -16,7 +16,6 @@ import os
 from typing import Callable
 
 import config
-from nifty50 import NIFTY_50
 from model.lstm_model import train, _model_path, _meta_path
 from agent.accuracy import AccuracyTracker
 
@@ -31,7 +30,7 @@ def _model_exists(symbol: str, horizon: str) -> bool:
 
 def untrained_symbols(horizon: str,
                       universe: list[str] | None = None) -> list[str]:
-    universe = universe or NIFTY_50
+    universe = universe or config.get_active_universe()
     return [s for s in universe if not _model_exists(s, horizon)]
 
 
@@ -46,7 +45,7 @@ def train_universe(horizon: str | None = None,
     Returns a summary dict: {trained: [...], skipped: [...], failed: [...]}.
     """
     horizon = horizon or config.AGENT_DEFAULT_HORIZON
-    universe = universe or NIFTY_50
+    universe = universe or config.get_active_universe()
 
     todo = untrained_symbols(horizon, universe) if only_missing else list(universe)
     skipped = [s for s in universe if s not in todo]

@@ -34,7 +34,10 @@ import time
 from datetime import datetime
 from typing import Callable
 
-from nifty50 import NIFTY_50 as _DEFAULT_UNIVERSE
+def _default_universe() -> list[str]:
+    """Lazy import so changes to config.ACTIVE_UNIVERSE at runtime are respected."""
+    import config
+    return config.get_active_universe()
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +108,7 @@ class PriceCache:
             return
         if not _AIOHTTP_OK:
             return
-        self._symbols  = list(symbols or _DEFAULT_UNIVERSE)
+        self._symbols  = list(symbols or _default_universe())
         self._interval = max(10, interval)
         self._running  = True
         self._thread   = threading.Thread(

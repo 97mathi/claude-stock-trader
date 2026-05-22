@@ -483,6 +483,14 @@
     <h2 id="first-time">First-time setup</h2>
     <p>Do these steps once before the app can trade autonomously.</p>
 
+    <div class="callout warn">
+      <span class="icon">⚠️</span>
+      <p><strong>Required sequence — do not skip or reorder these steps.</strong>
+      The app will warn you if you try to run a buy scan without trained models.
+      Changing the universe after training will invalidate the old models —
+      always retrain after switching.</p>
+    </div>
+
     <ol class="steps">
       <li>
         <div>
@@ -495,25 +503,55 @@
       </li>
       <li>
         <div>
+          <strong>Choose your trading universe</strong>
+          Go to the <strong>Agent</strong> tab and select one of:
+          <ul style="margin-top:8px;">
+            <li><strong>Nifty 50 stocks</strong> — 50 individual NSE large-cap
+            stocks. Higher potential returns, more volatile. Suitable if you
+            want stock-picking.</li>
+            <li><strong>Index funds / ETFs</strong> — A curated list of 23 Indian
+            ETFs (Nifty 50 ETFs, banking, sectoral, midcap, gold). <em>Lower
+            risk, recommended for beginners.</em> Click <strong>ℹ Fund list</strong>
+            to see which ETFs are included.</li>
+            <li><strong>Both</strong> — The full combined universe (73 instruments).
+            Most diversified but slowest to train.</li>
+          </ul>
+          <div class="callout tip" style="margin-top:8px;">
+            <span class="icon">💡</span>
+            <p><strong>Recommended for beginners:</strong> Start with
+            <em>Index funds / ETFs</em>. ETFs are broadly diversified by design —
+            a single ETF like NIFTYBEES holds all 50 Nifty stocks, so one bad
+            company cannot sink your position.</p>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div>
           <strong>Choose a trading mode</strong>
-          Go to the <strong>Agent</strong> tab and pick <em>swing</em> (weekly
-          trades) or <em>intraday</em> (same-day trades) from the Horizon
-          selector. <strong>Swing is recommended for beginners</strong> — it is
-          slower-paced and uses daily data.
+          Pick <em>swing</em> (weekly trades, 5-day forecast) or <em>intraday</em>
+          (same-day trades, 4-hour forecast).
+          <strong>Swing is recommended</strong> — ETFs especially benefit from
+          holding a few days rather than rapid intraday flips.
         </div>
       </li>
       <li>
         <div>
           <strong>Train the LSTM models — click "Train all (first run)"</strong>
-          The agent needs a trained model for every stock before it can score
-          or trade. Training downloads 5 years of daily data and fits a
-          neural network per stock.
+          The agent needs a trained model for every instrument in the selected
+          universe before it can score or trade. Training downloads 5 years of
+          OHLCV data and fits a neural network per symbol.
           <div class="callout warn" style="margin-top:12px;">
             <span class="icon">⏱️</span>
             <p>Training all 50 Nifty stocks takes <strong>30 – 60 minutes on
-            CPU</strong> (a few minutes on a GPU). You only do this once.
-            Models are saved to <code>model/trained/</code> and reused on
-            every future run.</p>
+            CPU</strong>. ETF-only mode is faster (~10 minutes for 23 symbols).
+            You only do this once per universe. Models are saved to
+            <code>model/trained/</code> and reused on every future run.</p>
+          </div>
+          <div class="callout warn" style="margin-top:8px;">
+            <span class="icon">🔄</span>
+            <p>If you switch universe after training, <strong>retrain models</strong>
+            for the new set. Running a buy scan with stale models from a different
+            universe will produce meaningless predictions.</p>
           </div>
         </div>
       </li>
@@ -580,6 +618,39 @@
       </div>
       <div class="tab-card-body">
 
+        <h4>Universe selector</h4>
+        <p>
+          Choose <em>which instruments</em> the agent scans, trains, and trades.
+        </p>
+        <table>
+          <tr><th>Option</th><th>What it includes</th><th>Risk level</th></tr>
+          <tr>
+            <td><strong>Nifty 50 stocks</strong></td>
+            <td>50 NSE large-cap stocks (RELIANCE, TCS, HDFC, …)</td>
+            <td>Medium — individual company risk</td>
+          </tr>
+          <tr>
+            <td><strong>Index funds / ETFs</strong></td>
+            <td>23 Indian ETFs across 5 categories (Nifty50 ETFs, banking,
+            sectoral, midcap, gold)</td>
+            <td>Lower — broad diversification</td>
+          </tr>
+          <tr>
+            <td><strong>Both</strong></td>
+            <td>Full combined universe — 73 instruments</td>
+            <td>Diverse but slower to train</td>
+          </tr>
+        </table>
+        <p>Click <strong>ℹ Fund list</strong> to see all ETF tickers grouped by
+        category. The status label shows how many models are already trained for
+        the active universe.</p>
+        <div class="callout warn">
+          <span class="icon">⚠️</span>
+          <p>After changing the universe, you <strong>must retrain</strong> models
+          before running a buy scan. The app will alert you if models are missing
+          or incomplete for the selected universe.</p>
+        </div>
+
         <h4>Auto-monitor row (always on)</h4>
         <p>
           The app monitors open positions automatically while it is running —
@@ -607,15 +678,17 @@
           <tr><th>Button</th><th>What it does</th><th>When to use</th></tr>
           <tr>
             <td><strong>Run buy scan</strong></td>
-            <td>Scores all Nifty 50 stocks not already held, filters by combined
-            score and correlation, then buys the top qualifying picks.</td>
-            <td>When you want the agent to actively open new positions.</td>
+            <td>Scores every instrument in the active universe not already held,
+            filters by score + correlation, then buys the top qualifying picks.
+            Blocked with an error if models are missing.</td>
+            <td>After training is complete for the selected universe.</td>
           </tr>
           <tr>
             <td><strong>Train all (first run)</strong></td>
-            <td>Trains an LSTM model for every Nifty 50 stock that does not
-            already have a saved model.</td>
-            <td>Once — the first time you launch the app.</td>
+            <td>Trains an LSTM model for every symbol in the active universe that
+            does not already have a saved model. Skips symbols that are already
+            trained so re-running is fast.</td>
+            <td>Once per universe choice — or after switching universes.</td>
           </tr>
           <tr>
             <td><strong>Retrain stale models</strong></td>
@@ -806,10 +879,18 @@
       </div>
       <div class="tab-card-body">
 
+        <div class="callout tip">
+          <span class="icon">ℹ️</span>
+          <p>Every parameter row has a small <strong>ℹ</strong> button. Click it
+          for a detailed explanation of what the setting does, why it matters,
+          the recommended value range, and any cautions.</p>
+        </div>
+
         <h4>Risk parameters</h4>
         <table>
           <tr><th>Setting</th><th>Default</th><th>What it controls</th></tr>
           <tr><td>Stop-loss %</td><td>3.0</td><td>Auto-sell when live price falls this far below buy price.</td></tr>
+          <tr><td>Trailing stop %</td><td>3.0</td><td>Stop that rises as price rises, locking in gains automatically.</td></tr>
           <tr><td>Intraday MIN profit %</td><td>1.0</td><td>Below this, position is held (intraday).</td></tr>
           <tr><td>Intraday MAX profit %</td><td>3.0</td><td>At or above this, auto-sell fires (intraday greed cap).</td></tr>
           <tr><td>Swing MIN profit %</td><td>3.0</td><td>Below this, position is held (swing).</td></tr>
@@ -1229,6 +1310,32 @@
 
     <!-- ══ FAQ ════════════════════════════════════════════════════ -->
     <h2 id="faq">FAQ</h2>
+
+    <div class="card">
+      <h3>Should I use Nifty 50 stocks or ETFs/funds?</h3>
+      <p>For <strong>lower risk and consistent small gains</strong>, choose
+      <em>Index funds / ETFs</em>. Here is why:</p>
+      <ul style="padding-left:20px;margin-top:8px;">
+        <li><strong>ETFs are pre-diversified</strong> — NIFTYBEES holds all 50 Nifty
+        stocks. One company's bad news barely moves the ETF.</li>
+        <li><strong>Lower volatility</strong> — ETFs rarely gap down 5–10 % overnight
+        the way individual stocks do on earnings surprises or regulatory action.</li>
+        <li><strong>LSTM works well on ETFs</strong> — Price patterns in broad-market
+        ETFs are more consistent than individual stocks, so model accuracy tends to
+        be higher.</li>
+        <li><strong>Beginner-friendly</strong> — No need to track company fundamentals;
+        the index does that for you.</li>
+      </ul>
+      <p>Use <em>Nifty 50 stocks</em> if you want higher potential return per trade
+      and are comfortable with more volatility. Use <em>Both</em> for maximum
+      diversification (but train time doubles).</p>
+      <div class="callout warn" style="margin-top:8px;">
+        <span class="icon">🔄</span>
+        <p>Always <strong>train models after switching universes</strong>. The
+        app will warn you if models are missing — a buy scan without trained
+        models will produce errors.</p>
+      </div>
+    </div>
 
     <div class="card">
       <h3>The first prediction takes a long time — is that normal?</h3>

@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 import config
-from nifty50 import NIFTY_50
+import config as _cfg  # avoid shadowing local `config` var
 from data.fetcher import get_latest_prices, get_latest_price, get_nifty_trend, get_current_rsi
 from model.lstm_model import predict
 from signals.aggregator import score_stock, StockScore
@@ -68,7 +68,8 @@ class TradingAgent:
     def __init__(self, portfolio: Portfolio | None = None,
                  universe: list[str] | None = None):
         self.portfolio = portfolio or Portfolio()
-        self.universe = universe or NIFTY_50
+        # universe defaults to whatever config.ACTIVE_UNIVERSE is at call time
+        self.universe = universe or _cfg.get_active_universe()
         self.tracker = AccuracyTracker()
 
     # -----------------------------------------------------------------
@@ -76,6 +77,8 @@ class TradingAgent:
                   progress: ProgressCb | None = None,
                   mode: str = "paper") -> AgentReport:
         horizon = horizon or config.AGENT_DEFAULT_HORIZON
+        # Refresh universe from config each cycle so GUI changes are immediate
+        self.universe = _cfg.get_active_universe()
         report = AgentReport(horizon=horizon, goal_reached=False, goal_status={})
 
         if mode == "real":

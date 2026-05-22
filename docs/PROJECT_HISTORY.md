@@ -156,4 +156,28 @@ This document records, in order, (A) the features and changes **requested**, and
 
 ---
 
-_Last updated: Round 13 — five low-risk profit rules implemented._
+## Section A — Round 14 requests
+
+22. **ETF / fund universe** — add a curated list of Indian ETFs as an alternative to individual Nifty 50 stocks; let users choose which universe to use from the GUI.
+23. **Info icons on every setting** — each parameter row in the Settings tab should have a small ℹ button that pops up a detailed explanation (WHAT / WHY / RECOMMENDED / CAUTION).
+24. **Fail-safes for required sequence** — warn or block if user tries to run buy scan before training, or switches universe without retraining; restart price cache on universe change.
+
+---
+
+## Section B — Round 14 implemented
+
+### Round 14 — ETF universe + info icons + fail-safe sequence
+
+54. **`funds.py`** (new file) — 23 curated Indian NSE ETFs in 5 risk tiers: Nifty 50 ETFs (NIFTYBEES, SETFNIF50, …), Nifty Next 50, Sectoral (BANKBEES, ITBEES, …), Midcap, Commodity/Gold. `ALL_FUNDS`, `RECOMMENDED_FUNDS`, and `FUND_CATEGORIES` dict exported.
+55. **`config.py` universe config** — `ACTIVE_UNIVERSE` setting (`"nifty50"` / `"funds"` / `"both"`); `get_active_universe()` helper reads from `nifty50.py` or `funds.py` based on active setting; runtime changes reflected without restart.
+56. **`agent/trainer.py`** — removed hardcoded `NIFTY_50` import; `untrained_symbols()` and `train_universe()` use `config.get_active_universe()` as default.
+57. **`agent/agent.py`** — `self.universe` initialised and refreshed via `_cfg.get_active_universe()` each cycle; RSI gate, LSTM gate, Nifty trend, drawdown all operate on the active universe.
+58. **`data/price_cache.py`** — `_default_universe()` function (lazy import of config) replaces module-level constant so universe changes at runtime are reflected in the next scrape cycle.
+59. **GUI universe selector** (`gui/app.py`) — three radio buttons (Nifty 50 / ETFs / Both) in the Agent tab; ℹ Fund list button opens a categorized ETF popup; status label shows trained-model count for the active universe; `_on_universe_change()` warns when models are missing for new universe and restarts the price cache.
+60. **GUI fail-safes** (`gui/app.py`) — three checks before the buy scan runs: (1) zero models → `showerror` with required sequence instructions; (2) > 30 % symbols untrained → `askyesno` caution; (3) price cache not running → `showwarning` (non-blocking).
+61. **Settings ℹ info icons** (`gui/app.py`) — every parameter row in the Settings tab now has a compact ℹ button (column 2) that shows a `messagebox.showinfo` popup explaining WHAT the parameter does, WHY it matters, the RECOMMENDED range, and any CAUTION — covers 11 parameters.
+62. **Docs updated** — `how_to_use.html`: required-sequence callout in first-time setup; universe selector table in Agent tab; ℹ button callout in Settings tab; new FAQ "Should I use Nifty 50 stocks or ETFs/funds?"; `PROJECT_HISTORY.md` extended to Round 14.
+
+---
+
+_Last updated: Round 14 — ETF universe selection, parameter info icons, fail-safe sequence checks._

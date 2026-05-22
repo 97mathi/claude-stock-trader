@@ -18,6 +18,7 @@ from tkinter import messagebox
 
 import config
 from nifty50 import NIFTY_50
+from funds import FUND_CATEGORIES, ALL_FUNDS, RECOMMENDED_FUNDS
 from data.fetcher import get_daily_history, get_latest_price, get_latest_prices
 from data.price_cache import price_cache
 from model.lstm_model import predict, train, Prediction
@@ -504,9 +505,42 @@ class StockTraderApp(ctk.CTk):
         ctk.CTkButton(top, text="Retrain stale models",
                       command=self._retrain_stale_threaded).pack(side="left", padx=4)
 
+        # ── Universe selector ────────────────────────────────────────
+        univ_frame = ctk.CTkFrame(root)
+        univ_frame.pack(fill="x", padx=12, pady=(4, 0))
+
+        ctk.CTkLabel(univ_frame,
+                     text="Trading Universe",
+                     font=ctk.CTkFont(weight="bold")
+                     ).pack(side="left", padx=(8, 12))
+
+        self._univ_var = ctk.StringVar(value=config.ACTIVE_UNIVERSE)
+        for val, label in [
+            ("nifty50", "Nifty 50 stocks"),
+            ("funds",   "ETF / Funds"),
+            ("both",    "Stocks + ETFs"),
+        ]:
+            ctk.CTkRadioButton(
+                univ_frame, text=label,
+                variable=self._univ_var, value=val,
+                command=self._on_universe_change,
+            ).pack(side="left", padx=6)
+
+        ctk.CTkButton(
+            univ_frame, text="ℹ Fund list", width=90,
+            fg_color="transparent", border_width=1,
+            command=self._show_fund_list,
+        ).pack(side="left", padx=(12, 4))
+
+        self._univ_status_lbl = ctk.CTkLabel(
+            univ_frame, text="", text_color="#9aa4b2",
+            font=ctk.CTkFont(size=11))
+        self._univ_status_lbl.pack(side="left", padx=8)
+        self._refresh_universe_label()
+
         # Auto-monitor row (always active while the app is open)
         auto = ctk.CTkFrame(root)
-        auto.pack(fill="x", padx=12, pady=(0, 8))
+        auto.pack(fill="x", padx=12, pady=(4, 8))
         ctk.CTkLabel(auto, text="Auto-monitor:",
                      font=ctk.CTkFont(weight="bold")).pack(side="left", padx=(8, 6))
         ctk.CTkLabel(auto, text="every").pack(side="left", padx=(4, 2))
@@ -576,26 +610,123 @@ class StockTraderApp(ctk.CTk):
                   f"Rs.{g['goal_amount']:,.0f} ({g['pct_of_goal']:.0f}%) - {state}"),
             text_color=color)
 
+    # ----- universe helpers -----
+
+    def _refresh_universe_label(self):
+        u = config.ACTIVE_UNIVERSE
+        universe = config.get_active_universe()
+        trained  = len(universe) - len(untrained_symbols(
+            self.agent_horizon.get() if hasattr(self, "agent_horizon")
+            else config.AGENT_DEFAULT_HORIZON, universe))
+        label = {"nifty50": "Nifty 50 stocks",
+                 "funds":   "ETF/Funds", "both": "Stocks + ETFs"}.get(u, u)
+        self._univ_status_lbl.configure(
+            text=f"({label} — {len(universe)} symbols, "
+                 f"{trained} models trained)")
+
+    def _on_universe_change(self):
+        new_val = self._univ_var.get()
+        old_val = config.ACTIVE_UNIVERSE
+        if new_val == old_val:
+            return
+
+        # Warn: switching universe means old models belong to different instruments
+        horizon  = getattr(self, "agent_horizon",
+                           ctk.StringVar(value=config.AGENT_DEFAULT_HORIZON)
+                           ).get()
+        new_universe = (NIFTY_50 if new_val == "nifty50"
+                        else ALL_FUNDS if new_val == "funds"
+                        else NIFTY_50 + ALL_FUNDS)
+        missing = untrained_symbols(horizon, new_universe)
+
+        config.ACTIVE_UNIVERSE = new_val
+
+        if missing:
+            messagebox.showwarning(
+                "⚠ Retrain required",
+                f"You switched to '{new_val}'.\n\n"
+                f"{len(missing)} of {len(new_universe)} symbols have no trained model "
+                f"for the '{horizon}' horizon.\n\n"
+                "ACTION REQUIRED:\n"
+                "  1. Click  'Train all'  to build models for the new universe.\n"
+                "  2. Only then run the buy scan.\n\n"
+                "Running a scan before training will skip untrained symbols "
+                "or use stale models from the old universe.")
+        else:
+            messagebox.showinfo(
+                "Universe changed",
+                f"Switched to '{new_val}'.\n"
+                f"All {len(new_universe)} symbols already have trained models. "
+                "You can run the buy scan immediately.")
+
+        self._refresh_universe_label()
+        # Restart price cache for the new symbol set
+        price_cache.stop()
+        self.after(500, self._start_price_cache)
+
+    def _show_fund_list(self):
+        """Pop up a window listing all ETF categories and their symbols."""
+        win = ctk.CTkToplevel(self)
+        win.title("ETF / Fund Universe")
+        win.geometry("620x540")
+        win.grab_set()
+
+        ctk.CTkLabel(win,
+                     text="Available ETF Categories",
+                     font=ctk.CTkFont(size=15, weight="bold")
+                     ).pack(pady=(16, 4), padx=16, anchor="w")
+        ctk.CTkLabel(win,
+                     text="ETFs are baskets of stocks — far safer than individual stocks.\n"
+                          "Select 'ETF / Funds' in the universe picker to trade these.",
+                     text_color="#9aa4b2", font=ctk.CTkFont(size=11)
+                     ).pack(padx=16, anchor="w", pady=(0, 8))
+
+        box = ctk.CTkTextbox(win, font=ctk.CTkFont(family="Consolas", size=11))
+        box.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+        box.configure(state="normal")
+
+        for cat, symbols in FUND_CATEGORIES.items():
+            box.insert("end", f"\n{'─'*60}\n")
+            box.insert("end", f"  {cat}\n")
+            box.insert("end", f"{'─'*60}\n")
+            for sym in symbols:
+                box.insert("end", f"  {sym}\n")
+
+        box.configure(state="disabled")
+        ctk.CTkButton(win, text="Close", command=win.destroy).pack(pady=(0, 12))
+
     def _train_all_threaded(self):
-        horizon = self.agent_horizon.get()
-        missing = untrained_symbols(horizon)
+        horizon  = self.agent_horizon.get()
+        universe = config.get_active_universe()
+        missing  = untrained_symbols(horizon, universe)
+
         if not missing:
-            messagebox.showinfo("Already trained",
-                f"All {len(NIFTY_50)} models for '{horizon}' already exist.")
+            messagebox.showinfo(
+                "Already trained",
+                f"All {len(universe)} models for '{horizon}' "
+                f"({config.ACTIVE_UNIVERSE}) already exist.\n\n"
+                "Nothing to do. Run the buy scan when ready.")
             return
         if not messagebox.askyesno(
                 "Train all",
-                f"Train {len(missing)} missing '{horizon}' models?\n"
-                "This can take a while (roughly 30-60s each on CPU)."):
+                f"Train {len(missing)} missing '{horizon}' models "
+                f"for universe: {config.ACTIVE_UNIVERSE}?\n\n"
+                f"• {len(universe) - len(missing)} already trained (will be skipped)\n"
+                f"• {len(missing)} need training (~30–60 s each on CPU)\n\n"
+                "You only need to do this once per universe. Models are saved "
+                "permanently and reused across sessions."):
             return
         self.run_cycle_btn.configure(state="disabled")
-        self._agent_log(f"\n--- Training {len(missing)} models ({horizon}) ---\n")
-        threading.Thread(target=self._train_all, args=(horizon,),
+        self._agent_log(
+            f"\n--- Training {len(missing)} models "
+            f"({horizon}, universe: {config.ACTIVE_UNIVERSE}) ---\n")
+        threading.Thread(target=self._train_all, args=(horizon, universe),
                          daemon=True).start()
 
-    def _train_all(self, horizon):
+    def _train_all(self, horizon, universe=None):
         try:
-            res = train_universe(horizon=horizon, only_missing=True,
+            res = train_universe(horizon=horizon, universe=universe,
+                                 only_missing=True,
                                  progress=self._agent_progress_cb)
             msg = (f"\nTraining done. Trained {len(res['trained'])}, "
                    f"skipped {len(res['skipped'])}, "
@@ -642,12 +773,45 @@ class StockTraderApp(ctk.CTk):
             messagebox.showwarning("Paper only",
                 "The agent runs in paper mode only. Real trading is disabled.")
             return
-        horizon = self.agent_horizon.get()
-        missing = untrained_symbols(horizon)
-        if len(missing) == len(NIFTY_50):
-            messagebox.showwarning("Train first",
-                "No models trained yet. Click 'Train all' once before running.")
+
+        horizon  = self.agent_horizon.get()
+        universe = config.get_active_universe()
+        missing  = untrained_symbols(horizon, universe)
+
+        # ── Fail-safe 1: no models at all ────────────────────────────
+        if len(missing) == len(universe):
+            messagebox.showerror(
+                "❌ Step 1 missing — train models first",
+                f"No models trained for the current universe "
+                f"({config.ACTIVE_UNIVERSE}, {len(universe)} symbols).\n\n"
+                "REQUIRED SEQUENCE:\n"
+                "  Step 1 → Click 'Train all'  (20–40 min, done once)\n"
+                "  Step 2 → Run buy scan\n\n"
+                "Without trained models the agent has nothing to predict with.")
             return
+
+        # ── Fail-safe 2: some models missing (universe changed?) ─────
+        if len(missing) > len(universe) * 0.3:   # >30% untrained
+            if not messagebox.askyesno(
+                "⚠ Caution — many symbols untrained",
+                f"{len(missing)} of {len(universe)} symbols in the current universe "
+                f"({config.ACTIVE_UNIVERSE}) have no trained model.\n\n"
+                "Did you recently switch universes without retraining?\n\n"
+                "• Click  'No'  → go train first ('Train all')\n"
+                "• Click  'Yes' → continue anyway (untrained symbols will be skipped)\n\n"
+                "For best results, train all symbols before scanning."):
+                return
+
+        # ── Fail-safe 3: price cache not running ─────────────────────
+        if not price_cache.is_running():
+            messagebox.showwarning(
+                "⚠ Price cache offline",
+                "The live price cache is not running.\n\n"
+                "Prices may be stale (up to 15 min delay from Yahoo Finance).\n"
+                "Check your internet connection. The cache starts automatically "
+                "on launch — restarting the app should fix this.\n\n"
+                "The scan will continue with best-available prices.")
+
         self._start_cycle(horizon)
 
     def _start_cycle(self, horizon: str):
@@ -923,6 +1087,128 @@ class StockTraderApp(ctk.CTk):
         f = ctk.CTkFrame(scroll)
         f.pack(fill="x", padx=16, pady=(16, 8))
 
+        # Parameter definitions: (label, default_value, info_text)
+        _INFO = {
+            "Stop-loss %": (
+                "WHAT:  Sell immediately if price falls this % below your buy price.\n\n"
+                "WHY:   Stops a small loss from becoming a big one. Without this, a "
+                "position that goes down 10% may never recover in your holding period.\n\n"
+                "RECOMMENDED:\n"
+                "  • Individual stocks: 3–5%  (stocks can be volatile)\n"
+                "  • ETFs / Nifty funds: 2–3%  (ETFs are smoother)\n\n"
+                "CAUTION: Setting too tight (< 1%) = getting stopped out on normal "
+                "daily noise. Too loose (> 7%) = taking large losses before exit."
+            ),
+            "Trailing stop %": (
+                "WHAT:  The stop-loss that follows the price UP as you profit.\n\n"
+                "HOW:   Buy Rs.100 → price rises to Rs.120 → stop moves to Rs.116.40 "
+                "(120 × (1 − 3%)). If price then falls to Rs.116.40 → auto-sell.\n\n"
+                "WHY:   A fixed stop-loss lets you give back ALL your gains before "
+                "selling. A trailing stop LOCKS IN profits as the price rises.\n\n"
+                "RECOMMENDED: Same as stop-loss % or slightly tighter (e.g. 2.5%)."
+            ),
+            "Intraday MIN profit %": (
+                "WHAT:  Below this P&L%, the position is always held (intraday).\n\n"
+                "WHY:   Prevents selling too early on a stock that just started moving. "
+                "Think of MIN as your 'good enough' target — you're happy if you exit "
+                "anywhere above this.\n\n"
+                "RECOMMENDED: 1.0–1.5% for intraday (4-hour hold).\n\n"
+                "Between MIN and MAX: the LSTM decides — positive forecast = hold, "
+                "negative = sell to lock the gain."
+            ),
+            "Intraday MAX profit %": (
+                "WHAT:  Auto-sell when P&L reaches this % (intraday greed cap).\n\n"
+                "WHY:   Markets reverse. A stock up 3% intraday can easily give it all "
+                "back in the next hour. Lock in the gain before that happens.\n\n"
+                "RECOMMENDED: 2.5–4% for intraday.\n\n"
+                "Must be higher than Intraday MIN. If set too high (> 5% intraday) "
+                "you'll rarely hit it — the price reverses before getting there."
+            ),
+            "Swing MIN profit %": (
+                "WHAT:  Below this P&L%, the position is held for swing trades (multi-day).\n\n"
+                "WHY:   A swing trade needs room to breathe across several days. Selling "
+                "at 1% profit after 3 days barely covers brokerage and doesn't justify "
+                "the time your capital was tied up.\n\n"
+                "RECOMMENDED:\n"
+                "  • Individual stocks: 2.5–4%\n"
+                "  • ETFs: 1.5–2.5%  (ETFs move more slowly)\n\n"
+                "Keep MIN < MAX. A typical swing aim is +3% MIN, +6% MAX."
+            ),
+            "Swing MAX profit %": (
+                "WHAT:  Auto-sell at this P&L% for swing trades.\n\n"
+                "WHY:   Swing trades held past their target become gambles. Booking "
+                "profit at the MAX cap is the disciplined choice.\n\n"
+                "RECOMMENDED:\n"
+                "  • Individual stocks: 5–8%\n"
+                "  • ETFs: 3–5%  (ETFs trend more slowly)\n\n"
+                "Must be higher than Swing MIN."
+            ),
+            "Min buy edge %": (
+                "WHAT:  The minimum % gain the LSTM must predict before the agent "
+                "will consider buying.\n\n"
+                "WHY:   If the model predicts only +0.3%, brokerage + slippage + "
+                "model error easily wipe out the gain. Only buy when the predicted "
+                "edge is meaningfully positive.\n\n"
+                "RECOMMENDED:\n"
+                "  • Intraday: ≥ 1.0%\n"
+                "  • Swing: ≥ 1.5%\n\n"
+                "Note: swing and intraday thresholds are in config.py as "
+                "SWING_MIN_LSTM_EDGE_PCT and INTRADAY_MIN_LSTM_EDGE_PCT. "
+                "This setting is the legacy display value."
+            ),
+            "Min hold edge %": (
+                "WHAT:  In the profit zone [MIN, MAX], if the fresh LSTM forecast "
+                "drops below this %, sell and lock the gain.\n\n"
+                "WHY:   A positive position with a freshly-negative forecast is about "
+                "to reverse. This setting determines how bearish the model must "
+                "turn before you exit.\n\n"
+                "RECOMMENDED: 0.0–0.5%  (0 = sell if ANY negative forecast; "
+                "0.5 = only sell if forecast is meaningfully negative)."
+            ),
+            "Max invested % (cap)": (
+                "WHAT:  Never invest more than this % of your total equity at once. "
+                "The rest stays as cash reserve.\n\n"
+                "WHY:   If 100% of your capital is in stocks and the market crashes, "
+                "you have no cash to buy the dip. A 25% cash reserve also covers "
+                "margin calls, brokerage, and unexpected expenses.\n\n"
+                "RECOMMENDED:\n"
+                "  • Conservative: 60–65%\n"
+                "  • Moderate: 70–75% (default)\n"
+                "  • Aggressive: 80–85% (not recommended for beginners)\n\n"
+                "Lower = safer. Never set above 90%."
+            ),
+            "Max position %": (
+                "WHAT:  Maximum % of equity in any single stock or ETF.\n\n"
+                "WHY:   If one stock crashes and it's 40% of your portfolio, "
+                "you lose 40% of your capital in one trade. Spreading across "
+                "stocks limits damage from any single bad call.\n\n"
+                "RECOMMENDED:\n"
+                "  • Individual stocks: 8–12%  (high single-stock risk)\n"
+                "  • ETFs: 15–20%  (ETFs are diversified internally)\n\n"
+                "Lower = more diversified = safer."
+            ),
+            "Allocation scale (x edge)": (
+                "WHAT:  Multiplier that converts predicted edge into position size.\n"
+                "Formula: target_pct = predicted_edge% × this_scale\n\n"
+                "EXAMPLE with scale = 4:\n"
+                "  • Predicted edge +1% → 4% of equity allocated\n"
+                "  • Predicted edge +2% → 8% of equity allocated\n"
+                "  • Predicted edge +2.5% → 10% (hits max position cap)\n\n"
+                "WHY:   Higher-confidence predictions get bigger positions — "
+                "but still capped by 'Max position %'.\n\n"
+                "RECOMMENDED: 3–5. Lower (2) = very conservative sizing. "
+                "Higher (6+) = aggressive, more concentrated positions."
+            ),
+            "Min allocation %": (
+                "WHAT:  If the calculated position size is below this % of equity, "
+                "skip the trade entirely.\n\n"
+                "WHY:   Very small positions (e.g. 0.5% of Rs.1 lakh = Rs.500) "
+                "barely move your portfolio in profit but still consume brokerage "
+                "and attention. Not worth the overhead.\n\n"
+                "RECOMMENDED: 2–3%. Below 2% is generally not worth trading."
+            ),
+        }
+
         rows = [
             ("Stop-loss %",               f"{config.STOP_LOSS_PCT*100:.1f}"),
             ("Intraday MIN profit %",      f"{config.INTRADAY_MIN_PROFIT_PCT*100:.1f}"),
@@ -944,15 +1230,24 @@ class StockTraderApp(ctk.CTk):
             e.insert(0, val)
             e.grid(row=i, column=1, padx=8, pady=6)
             self.settings_entries[label] = e
+            # ℹ info button
+            info_text = _INFO.get(label, "No description available.")
+            ctk.CTkButton(
+                f, text="ℹ", width=26, height=26,
+                fg_color="transparent", border_width=1,
+                font=ctk.CTkFont(size=12),
+                command=lambda t=label, m=info_text: messagebox.showinfo(
+                    f"About: {t}", m)
+            ).grid(row=i, column=2, padx=(2, 8), pady=6)
 
         ctk.CTkLabel(f, text="Tip: MIN = lock-in floor, MAX = greed cap. "
                              "P&L between them is decided by a fresh prediction.",
                      text_color="#9aa4b2", font=ctk.CTkFont(size=11)
-                     ).grid(row=len(rows), column=0, columnspan=2,
+                     ).grid(row=len(rows), column=0, columnspan=3,
                             sticky="w", padx=8, pady=(8, 0))
         ctk.CTkButton(f, text="Apply settings",
                       command=self._apply_settings
-                      ).grid(row=len(rows)+1, column=0, columnspan=2,
+                      ).grid(row=len(rows)+1, column=0, columnspan=3,
                              pady=12, sticky="ew")
 
         # ---- Total capital ----
